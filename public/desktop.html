@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN" data-mode="desktop">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>手机通知</title>
+  <link rel="stylesheet" href="desktop.css">
+  <script src="app.js" defer></script>
+  <script src="desktop.js" defer></script>
+</head>
+<body>
+<main>
+  <header class="app-header"><img src="app-icon.png?v=20261115-no-bell" alt="" width="48" height="48"><div><h1>手机通知</h1><p>iPhone 的新消息，在电脑上看见</p></div><span id="status" class="status">正在连接</span></header>
+  <section class="controls card" aria-label="应用设置">
+    <div class="control"><div><h2>接收手机通知</h2><p id="receive-description">正在读取接收状态</p></div><button class="switch" id="receive-toggle" role="switch" aria-checked="false" aria-label="接收手机通知" disabled><span></span></button></div>
+    <div class="control"><div><h2>开机自启</h2><p>登录 Windows 后，在托盘运行并沿用接收状态</p></div><button class="switch" id="startup-toggle" role="switch" aria-checked="false" aria-label="开机自启" disabled><span></span></button></div>
+  </section>
+  <nav class="tabs" aria-label="页面"><button class="tab active" data-tab="notifications" aria-selected="true">通知记录</button><button class="tab" data-tab="setup" aria-selected="false">手机配置</button></nav>
+  <section id="notifications" class="tab-panel">
+    <div class="metrics"><div><strong id="received">0</strong><span>本次收到</span></div><div><strong id="shown">0</strong><span>已显示</span></div><div><strong id="failed">0</strong><span>显示失败</span></div><button id="test" class="secondary" disabled>发送测试通知</button></div>
+    <div class="card records"><div class="section-heading"><h2>最近通知</h2><span>最近 200 条，仅在本机保留 7 天</span></div><div id="history"><div class="empty"><div class="empty-mark">◌</div><h3>等待第一条通知</h3><p>手机连接相同局域网后，收到的新通知会出现在这里</p></div></div></div>
+  </section>
+  <section id="setup" class="tab-panel" hidden>
+    <div class="card setup-card"><div class="section-heading"><h2>连接与手机配置</h2><span>首次使用请完成下面步骤</span></div>
+      <div class="network-settings"><h3>电脑局域网地址</h3><p>选择与 iPhone 相通的网卡地址。VPN、虚拟网卡和访客 Wi-Fi 可能无法互通。</p><div class="network-fields"><label>网络地址<select id="network-host" aria-label="电脑局域网地址"></select></label><label>端口<input id="network-port" type="number" min="1024" max="65535" value="18766"></label></div><div class="button-row"><button id="save-network" class="secondary">保存连接设置</button><button id="refresh-network" class="secondary">刷新网络</button><button id="configure-firewall" class="secondary">允许专用局域网访问</button></div><p>防火墙配置需要 Windows 管理员授权，仅开放当前程序和端口，范围为专用网络的本地子网。请先保存连接设置。</p><p id="data-location" class="import-note"></p></div>
+      <div class="import-guide"><img src="shortcut-import-qr.png" width="146" height="146" alt="扫码导入同步到电脑快捷指令"><div><h3>扫码导入「同步到电脑」</h3><p>使用 iPhone 扫码，添加分享的快捷指令，再检查触发应用和自动化是否已启用。</p><button id="copy-shortcut" class="secondary">复制快捷指令分享链接</button><p class="import-note">这份导出选择了 QQ、京东金融；需要微信时，请在导入后加上。它引用 Scriptable「通知静默转发」，发送脚本需按下面步骤单独保存。</p></div></div>
+      <div class="setup-step"><span class="number">1</span><div><h3>在 Scriptable 中保存发送脚本</h3><p>复制或导出下面的脚本，传到 iPhone 后在 Scriptable 中保存为「通知静默转发」。已配置且正常工作的手机无需重新修改。</p><textarea id="scriptable-code" rows="10" readonly spellcheck="false" aria-label="Scriptable 发送脚本"></textarea><div class="button-row"><button id="copy-scriptable" class="secondary">复制 Scriptable 脚本</button><button id="export-script" class="secondary">导出脚本文件</button></div></div></div>
+      <div class="setup-step"><span class="number">2</span><div><h3>确认快捷指令中的通知与来源 App</h3><p>导入上方分享后，这些动作已经配置，无需重复添加。若手动配置：保留「通知」触发器和包含蓝色「通知」变量的「文本」动作，在文本后添加「字典」，字段类型均选文本：</p><dl><dt>message</dt><dd>上一步的「文本」变量</dd><dt>appId</dt><dd>「通知」变量 → App</dd></dl><p>Scriptable「运行脚本」选择「通知静默转发」，<strong>参数选择「字典」</strong>。若有「在 App 中运行」选项，请关闭。</p></div></div>
+      <div class="setup-step"><span class="number">3</span><div><h3>启用自动化并测试真实通知</h3><p>允许本地网络访问；若提供运行前确认与锁定时运行选项，设为无需确认并允许锁定时运行。使用一条新的微信消息验证，之后锁屏再验证一次。</p></div></div>
+      <div class="endpoint-area"><h3>当前手机接收地址</h3><textarea id="endpoint" rows="2" readonly spellcheck="false" aria-label="通知接收地址"></textarea><button id="copy" class="secondary">复制接收地址</button><p>更换电脑 IP 后，手机脚本中的地址仍需同步更新。离线通知会静默跳过，不补发。</p></div>
+    </div>
+  </section>
+  <footer><span>所有设置在本机完成</span><span>关闭窗口后继续在托盘运行</span></footer>
+</main>
+<div id="feedback" class="feedback" role="status" hidden></div>
+</body>
+</html>

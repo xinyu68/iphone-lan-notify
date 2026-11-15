@@ -1,0 +1,22 @@
+const assert = require('node:assert/strict');
+const { normaliseNotification } = require('./notification-format.cjs');
+
+const wechat = normaliseNotification({ message: '微信支付\n测试消息', appId: 'com.tencent.xin' });
+assert.equal(wechat.appName, '微信');
+assert.equal(wechat.title, '微信支付');
+assert.equal(wechat.body, '测试消息');
+assert.equal(wechat.source, '微信');
+assert.match(wechat.notifierAppId, /^Xinyu\.IPhoneLanNotify\.Source\.[a-f0-9]{24}$/);
+assert.equal(normaliseNotification({ message: '支付宝到账\n来自微信聊天的内容', appId: 'com.tencent.xin' }).appName, '微信');
+const alipay = normaliseNotification({ message: '支付宝到账通知', appId: 'com.alipay.iphoneclient' });
+assert.equal(alipay.appName, '支付宝');
+assert.notEqual(alipay.notifierAppId, wechat.notifierAppId);
+assert.equal(normaliseNotification({ message: '另一条通知', appId: 'com.tencent.xin' }).notifierAppId, wechat.notifierAppId);
+assert.equal(normaliseNotification({ message: '旧版只有正文' }).appName, 'iPhone');
+assert.equal(normaliseNotification({ message: '邮件内容', appId: 'com.apple.MobileSMS' }).appName, '信息');
+assert.equal(normaliseNotification({ message: '内容', appId: 'com.example.app', appName: '自定义 App' }).appName, '自定义 App');
+assert.equal(normaliseNotification({ message: '内容', appId: 'com.example.app' }, { 'com.example.app': '我的应用' }).appName, '我的应用');
+assert.equal(normaliseNotification({ message: '正文中的 <>& 不应被丢弃', appName: '测试\n应用' }).appName, '测试 应用');
+assert.throws(() => normaliseNotification({ message: '' }), { status: 400 });
+assert.throws(() => normaliseNotification({ message: { invalid: true } }), { status: 400 });
+console.log('PASS: source app identity, known bundle IDs, title/body preservation, separate Windows identities, legacy input and custom app names');

@@ -1,0 +1,32 @@
+name: Windows build
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Test without personal configuration
+        run: npm test
+      - name: Build complete Windows bundle
+        shell: powershell
+        run: .\build-release.ps1
+      - name: Upload Windows ZIP and checksum
+        uses: actions/upload-artifact@v7
+        with:
+          name: PhoneNotify-win-x64
+          path: |
+            dist/*.zip
+            dist/*.sha256
+          if-no-files-found: error
+          retention-days: 30
