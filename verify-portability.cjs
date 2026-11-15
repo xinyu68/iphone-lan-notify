@@ -36,7 +36,11 @@ try {
     const env = { ...process.env, PATH:'', PHONE_NOTIFY_DATA_DIR:data };
     execFileSync(executable, [app], { env, windowsHide:true });
     const saved = JSON.parse(fs.readFileSync(path.join(data, 'config.json'), 'utf8'));
-    assert.equal(fs.realpathSync(saved.nodePath).toLowerCase(), fs.realpathSync(path.join(app, 'runtime', 'node.exe')).toLowerCase());
+    // Windows may expand an 8.3 TEMP path in .NET while Node retains its short spelling.
+    const actualNode = fs.statSync(saved.nodePath, { bigint:true });
+    const expectedNode = fs.statSync(path.join(app, 'runtime', 'node.exe'), { bigint:true });
+    assert.equal(actualNode.dev, expectedNode.dev);
+    assert.equal(actualNode.ino, expectedNode.ino);
     assert(saved.token && saved.token.length === 32);
     assert(!fs.existsSync(path.join(app, 'config.json')));
     fs.writeFileSync(path.join(data, 'preferences.json'), JSON.stringify({receiveEnabled:false}));
