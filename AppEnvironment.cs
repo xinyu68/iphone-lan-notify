@@ -20,11 +20,11 @@ namespace Xinyu.PhoneNotifications
             string configured = Environment.GetEnvironmentVariable("PHONE_NOTIFY_DATA_DIR");
             if (!String.IsNullOrWhiteSpace(configured)) {
                 if (!Path.IsPathRooted(configured)) throw new InvalidOperationException("PHONE_NOTIFY_DATA_DIR 必须是绝对路径");
-                return Path.GetFullPath(configured);
+                return NormalizeDataDirectory(configured);
             }
             // Existing portable installations retain their data and pairing address.
-            if (File.Exists(Path.Combine(root, "config.json"))) return root;
-            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PhoneNotify", "data");
+            if (File.Exists(Path.Combine(root, "config.json"))) return NormalizeDataDirectory(root);
+            return NormalizeDataDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PhoneNotify", "data"));
         }
 
         internal static object[] Networks()
@@ -86,6 +86,12 @@ namespace Xinyu.PhoneNotifications
             int port = Convert.ToInt32(config["port"]);
             if (port < 1024 || port > 65535 || !System.Text.RegularExpressions.Regex.IsMatch(Convert.ToString(config["token"]), "\\A[A-Za-z0-9_-]{32,100}\\z")) throw new InvalidOperationException("端口或配对令牌无效");
             Save(filename, config);
+        }
+
+        private static string NormalizeDataDirectory(string directory)
+        {
+            string full = Path.GetFullPath(directory);
+            return full.Length > Path.GetPathRoot(full).Length ? full.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) : full;
         }
     }
 }

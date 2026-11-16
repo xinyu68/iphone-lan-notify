@@ -35,7 +35,14 @@ try {
     const data = path.join(fixture, 'isolated-user-data');
     const env = { ...process.env, PATH:'', PHONE_NOTIFY_DATA_DIR:data };
     execFileSync(executable, [app], { env, windowsHide:true });
+    const canonical=execFileSync(executable,[app],{env,windowsHide:true,encoding:'utf8'}).trim();
+    const trailing=execFileSync(executable,[app],{env:{...env,PHONE_NOTIFY_DATA_DIR:data+path.sep},windowsHide:true,encoding:'utf8'}).trim();
+    assert.equal(trailing,canonical,'Trailing separators must not create a different single-instance/data identity after restart');
     const saved = JSON.parse(fs.readFileSync(path.join(data, 'config.json'), 'utf8'));
+    fs.writeFileSync(path.join(legacy,'config.json'),JSON.stringify(saved));
+    const legacyIdentity=execFileSync(executable,[legacy+path.sep],{env:{...env,PHONE_NOTIFY_DATA_DIR:''},windowsHide:true,encoding:'utf8'}).trim();
+    const restartedIdentity=execFileSync(executable,[legacy],{env:{...env,PHONE_NOTIFY_DATA_DIR:legacy},windowsHide:true,encoding:'utf8'}).trim();
+    assert.equal(legacyIdentity,restartedIdentity,'Portable launch and installer restart must share one controller identity');
     // Windows may expand an 8.3 TEMP path in .NET while Node retains its short spelling.
     const actualNode = fs.statSync(saved.nodePath, { bigint:true });
     const expectedNode = fs.statSync(path.join(app, 'runtime', 'node.exe'), { bigint:true });

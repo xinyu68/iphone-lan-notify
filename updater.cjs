@@ -24,11 +24,28 @@ async function getRelease(current,tag,fetchImpl=fetch){
   return releaseInfo(JSON.parse(text),current);
 }
 async function downloadAsset(asset,destination,progress,fetchImpl=fetch){
-  const response=await fetchImpl(asset.url,{signal:AbortSignal.timeout(180000)});
+  const curl=process.platform==='win32'&&process.env.SystemRoot?path.join(process.env.SystemRoot,'System32','curl.exe'):null;
+  if(fetchImpl===fetch&&asset.size>4096&&curl&&fs.existsSync(curl))return downloadWithCurl(curl,asset,destination,progress);
+  const response=await fetchImpl(asset.url,{signal:AbortSignal.timeout(asset.size<=4096?20000:180000)});
   if(!response.ok||!response.body)throw Error('安装包下载失败，请稍后重试');
   const fd=fs.openSync(destination,'wx'),hash=crypto.createHash('sha256');let size=0,last=-1;
   try {for await(const chunk of response.body){size+=chunk.length;if(size>asset.size)throw Error('下载大小异常');hash.update(chunk);for(let written=0;written<chunk.length;){const count=fs.writeSync(fd,chunk,written,chunk.length-written);if(!count)throw Error("Could not write update package");written+=count;}const percent=Math.floor(size/asset.size*100);if(percent!==last){last=percent;if(progress)progress(percent);}}} finally {fs.closeSync(fd);}
   if(size!==asset.size||hash.digest('hex')!==asset.sha256)throw Error('下载校验失败，未安装任何文件');
+}
+async function downloadWithCurl(curl,asset,destination,progress){
+  fs.closeSync(fs.openSync(destination,'wx'));
+  const {spawn}=require('node:child_process');let last=-1;
+  const report=()=>{try{const size=fs.statSync(destination).size;if(size>asset.size)return;const value=Math.floor(size/asset.size*100);if(value!==last){last=value;if(progress)progress(value);}}catch{}};
+  const timer=setInterval(report,250);
+  try{
+    await new Promise((resolve,reject)=>{
+      const child=spawn(curl,['--fail','--location','--silent','--show-error','--proto','=https','--proto-redir','=https','--connect-timeout','20','--max-time','180','--retry','2','--retry-delay','1','--retry-max-time','180','--output',destination,'--url',asset.url],{windowsHide:true,stdio:['ignore','ignore','pipe']});
+      child.stderr.resume();child.once('error',reject);child.once('exit',code=>code===0?resolve():reject(Error('安装包下载失败，请检查 GitHub 连接后重试（下载组件 '+code+'）')));
+    });
+    const actual=fs.statSync(destination).size;if(actual!==asset.size)throw Error('下载大小异常');
+    const hash=crypto.createHash('sha256');for await(const chunk of fs.createReadStream(destination))hash.update(chunk);
+    if(hash.digest('hex')!==asset.sha256)throw Error('下载校验失败，未安装任何文件');report();
+  }finally{clearInterval(timer);}
 }
 async function prepareUpdate({current,target,dataRoot},progress,fetchImpl=fetch){
   const release=await getRelease(current,target,fetchImpl);if(release.version!==target||!release.available)throw Error('目标版本不是较新的正式版本');

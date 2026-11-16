@@ -43,6 +43,7 @@ namespace Xinyu.PhoneNotifications
             return Task.Run(delegate {
                 var serializer=new JavaScriptSerializer { MaxJsonLength=1024*1024 };
                 var start=new ProcessStartInfo(nodePath,"\""+Path.Combine(root,"updater.cjs")+"\"") {WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,RedirectStandardInput=true,RedirectStandardOutput=true,RedirectStandardError=true,StandardOutputEncoding=Encoding.UTF8};
+                if(String.IsNullOrEmpty(start.EnvironmentVariables["NODE_USE_ENV_PROXY"])&&(!String.IsNullOrEmpty(start.EnvironmentVariables["HTTPS_PROXY"])||!String.IsNullOrEmpty(start.EnvironmentVariables["HTTP_PROXY"])))start.EnvironmentVariables["NODE_USE_ENV_PROXY"]="1";
                 Dictionary<string,object> result=null;
                 using(var process=Process.Start(start)) {
                     var errors=process.StandardError.ReadToEndAsync();
@@ -59,7 +60,7 @@ namespace Xinyu.PhoneNotifications
                     };
                     process.BeginOutputReadLine();
                     process.StandardInput.WriteLine(serializer.Serialize(request));process.StandardInput.Close();
-                    if(!process.WaitForExit(240000)){try{process.Kill();}catch{}throw new InvalidOperationException("更新请求超时，请稍后重试");}
+                    if(!process.WaitForExit(420000)){try{process.Kill();}catch{}throw new InvalidOperationException("更新请求超时，请稍后重试");}
                     process.WaitForExit();
                     if(result==null)throw new InvalidOperationException("更新组件未返回结果，请稍后重试");
                     if(!Convert.ToBoolean(result["ok"]))throw new InvalidOperationException(Convert.ToString(result["error"]));
