@@ -123,7 +123,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 ### 1. 保存 Scriptable 脚本
 
-在电脑应用 **剪贴板收件箱** 页复制或导出发送代码，传到 iPhone，在 Scriptable 中保存为 **发送到电脑**。
+在电脑应用 **手机配置 → 剪贴板与文件发送** 中复制或导出发送代码，传到 iPhone，在 Scriptable 中保存为 **发送到电脑**。**剪贴板收件箱** 页只展示接收记录和文件入口，也可从该页的“手机发送配置”按钮跳转到配置位置。
 
 | 功能 | Scriptable 脚本名称 |
 | --- | --- |

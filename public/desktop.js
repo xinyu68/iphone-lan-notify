@@ -28,6 +28,10 @@
   get('startup-toggle').addEventListener('click', () => send('startup', { enabled: get('startup-toggle').getAttribute('aria-checked') !== 'true' }));
   get('clipboard-toggle').addEventListener('click', () => send('clipboard-enabled', { enabled:get('clipboard-toggle').getAttribute('aria-checked') !== 'true' }));
   get('open-inbox').addEventListener('click', () => send('open-inbox'));
+  get('open-clipboard-setup').addEventListener('click', () => {
+    selectTab('setup');
+    get('clipboard-setup-card').scrollIntoView({behavior:'smooth',block:'start'});
+  });
   get('copy-clipboard-script').addEventListener('click', () => send('copy', {text:get('clipboard-script').value}));
   get('export-clipboard-script').addEventListener('click', () => send('export-clipboard-script', {text:get('clipboard-script').value}));
   let clipboardHistoryKey = '';
