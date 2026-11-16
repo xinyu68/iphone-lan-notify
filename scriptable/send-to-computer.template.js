@@ -48,10 +48,10 @@ await (async function sendClipboardToComputer(endpoint) {
       return reply;
     };
     if (text !== null && text !== undefined) {
-      if (typeof text !== 'string' || text.length === 0) throw Error('剪贴板没有可以发送的文字');
+      if (typeof text !== 'string' || text.length === 0) throw Error('未读取到文字。请先在快捷指令中添加「获取剪贴板」，将结果传给「运行脚本」的参数');
       await command({ kind:'text', text });
     } else {
-      if (!files.length) throw Error('没有可发送的内容。文件请从“文件”App 的分享菜单发送');
+      if (!files.length) throw Error('未读取到内容。请先在快捷指令中添加「获取剪贴板」，将结果传给「运行脚本」的参数；文件请从分享菜单发送');
       if (files.length > 20 || files.reduce((sum,file) => sum + file.size, 0) > 100 * 1024 * 1024) throw Error('一次最多 20 个文件，合计最多 100 MiB');
       const batch = await command({ op:'begin', kind, files:files.map(file => ({name:file.name,size:file.size})) });
       for (let index = 0; index < files.length; index++) {
