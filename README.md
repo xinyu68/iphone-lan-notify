@@ -4,7 +4,7 @@
 
 电脑端是独立桌面应用，手机端使用快捷指令和 Scriptable。通知可以自动转发；剪贴板由用户触发一次发送。
 
-**[下载 Windows 程序](https://github.com/xinyu68/iphone-lan-notify/actions/workflows/windows-build.yml)** · [安装与连接](#安装与连接) · [通知同步](#通知同步) · [剪贴板与文件](#剪贴板与文件) · [常见问题](#常见问题) · [开发说明](docs/DEVELOPMENT.md)
+**[下载最新版 Windows 程序](https://github.com/xinyu68/iphone-lan-notify/releases/latest)** · [全部版本](https://github.com/xinyu68/iphone-lan-notify/releases) · [安装与连接](#安装与连接) · [通知同步](#通知同步) · [剪贴板与文件](#剪贴板与文件) · [常见问题](#常见问题) · [开发说明](docs/DEVELOPMENT.md)
 
 ![手机通知桌面应用，界面地址为示例](docs/images/desktop-notifications.png)
 
@@ -44,9 +44,9 @@ Windows 10 19045 已有本机验证。Windows 11、其他显示缩放、企业�
 
 ### 1. 下载完整程序包
 
-打开 [Windows build](https://github.com/xinyu68/iphone-lan-notify/actions/workflows/windows-build.yml)，选择最近成功的构建，在 **Artifacts** 中下载 **PhoneNotify-win-x64**。
+打开 [Releases 最新版](https://github.com/xinyu68/iphone-lan-notify/releases/latest)，在 **Assets** 中下载 `PhoneNotify-<版本>-win-x64.zip`，需要核对完整性时一并下载同名 `.zip.sha256` 文件。正式安装包和更新说明今后统一发布在 Releases，无需登录 GitHub 即可下载公开附件。
 
-解压构建产物后取得程序 ZIP 和 SHA-256 校验文件，再解压程序 ZIP（例如 `PhoneNotify-1.2.0-win-x64.zip`）。请保留完整目录，不要只复制 EXE。
+直接解压程序 ZIP（例如 `PhoneNotify-1.2.0-win-x64.zip`）。请保留完整目录，不要只复制 EXE；GitHub 自动生成的 **Source code** 压缩包是源码，不是可运行程序。
 
 ### 2. 检查环境并启动
 

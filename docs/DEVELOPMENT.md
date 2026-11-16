@@ -59,6 +59,17 @@ node verify-clear-on-card-open.cjs
 
 ## 发行与验证范围
 
+正式安装包统一发布到 [Releases](https://github.com/xinyu68/iphone-lan-notify/releases)，README 下载入口固定指向 `releases/latest`。日常推送 main 或 PR 只做测试和构建，Actions 产物用于开发验证。
+
+发新版本时修改 `package.json` 与 `package-lock.json` 的版本，新增 `docs/releases/<版本>.md` 更新说明，提交后用本机 Git 创建并推送 `v<版本>` 标签。标签必须与 package.json 完全一致；已发布的版本和标签不覆盖、不移动。
+
+```powershell
+git tag -a v1.2.0 -m 'Release v1.2.0'
+git push origin main v1.2.0
+```
+
+标签触发 Windows 完整构建；通过后发布 job 仅下载同一次运行的 ZIP 与校验文件。`publish-release.cjs` 核对版本、标签提交及文件摘要，创建草稿、上传两份附件、读回大小和 SHA-256 后再公开并设为 Latest。同名且摘要一致的附件在重跑时复用，内容不一致则停止；不删除或覆盖旧附件。发布 job 单独获得 `contents: write` 和 `actions: read`，普通构建保持只读。`node verify-release.cjs` 用隔离的模拟 API 验证失败不公开及重跑行为，不访问 GitHub、不上传文件。
+
 `build-release.ps1` 使用明确的文件白名单打包，不复制个人配置、历史、日志、截图或 WebView2 个人资料。Node.js 与 WebView2 SDK 的下载地址和 SHA-256 各自固定；ZIP 中包含 Node.js 许可、WebView2 SDK 许可及文件校验清单。发布前运行测试、构建、检查包内容并执行干净目录接收验证。
 
 Windows 10/11 x64 是目标环境。已在开发机器的 Windows 10 19045 验证桌面通知；Windows 11、其他显示缩放、企业组策略和不同 iOS 的真实通知自动化仍需对应环境验证。自动触发所需 iOS 最低版本未作通用承诺，应以手机实际提供的触发器为准。
