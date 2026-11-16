@@ -47,8 +47,27 @@ try {
     $package=Get-Content -LiteralPath (Join-Path $source 'package.json') -Raw -Encoding UTF8|ConvertFrom-Json
     if($package.version -ne $meta.version){throw 'Package version mismatch'}
     if($ValidateOnly){Write-Output 'PASS: update archive and manifest validated';return}
-    $parent=Get-CimInstance Win32_Process -Filter ('ProcessId='+$ParentId)
-    if(!$parent -or ![string]::Equals($parent.ExecutablePath,(Join-Path $app 'PhoneNotify.exe'),[StringComparison]::OrdinalIgnoreCase)){throw 'Unexpected update parent process'}
+    Add-Type -TypeDefinition @'
+using System;
+using System.IO;
+using System.Text;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
+public static class PhoneNotifyUpdatePath {
+    [DllImport("kernel32.dll",CharSet=CharSet.Unicode,SetLastError=true)]
+    private static extern uint GetFinalPathNameByHandle(SafeFileHandle file,StringBuilder output,uint length,uint flags);
+    public static string Resolve(string path) {
+        using(var file=new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete)) {
+            var result=new StringBuilder(32768);
+            uint count=GetFinalPathNameByHandle(file.SafeFileHandle,result,(uint)result.Capacity,0);
+            if(count==0||count>=result.Capacity)throw new IOException("Unable to resolve update process path");
+            return result.ToString();
+        }
+    }
+}
+'@
+    $parent=[Diagnostics.Process]::GetProcessById($ParentId)
+    if(!$parent -or ![string]::Equals([PhoneNotifyUpdatePath]::Resolve($parent.MainModule.FileName),[PhoneNotifyUpdatePath]::Resolve((Join-Path $app 'PhoneNotify.exe')),[StringComparison]::OrdinalIgnoreCase)){throw 'Unexpected update parent process'}
     @{version=$meta.version}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $stagePath 'ready.json') -Encoding UTF8
     $deadline=(Get-Date).AddSeconds(90)
     while(Get-Process -Id $ParentId -ErrorAction SilentlyContinue){if((Get-Date) -gt $deadline){throw 'Application did not exit; no files installed'};Start-Sleep -Milliseconds 250}
