@@ -27,6 +27,7 @@
 .clipboard-image-viewer{width:min(1000px,calc(100vw - 40px));max-height:90vh;padding:20px;border:1px solid var(--border);border-radius:12px;color:#1b2b42;background:#fff;overflow:auto}
 .clipboard-image-viewer::backdrop{background:#14233399}.image-viewer-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}.image-viewer-heading h2{font-size:14px;margin:0;overflow-wrap:anywhere}
 .clipboard-image-viewer>img{display:block;max-width:100%;max-height:72vh;margin:16px auto 0;object-fit:contain}.clipboard-image-viewer>p{font-size:12px;color:#7b8a9b}
+.clipboard-receipt-actions{margin-top:3px}
 .controls{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 .controls .control{align-items:flex-start;gap:14px;min-width:0}
 .controls .control>div{min-width:0}

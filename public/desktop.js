@@ -61,6 +61,23 @@
   let clipboardHistoryKey = '';
   const clipboardTextState = new Map();
   const clipboardTextViews = new Map();
+  let clipboardCopyPending = null;
+  let clipboardCopiedKey = null;
+  let clipboardCopyTimer;
+  function updateClipboardCopyButtons() {
+    document.querySelectorAll('[data-clipboard-copy]').forEach(button=>{
+      const key = button.dataset.clipboardCopy;
+      const unavailable = button.dataset.unavailable === 'true';
+      button.disabled = unavailable || Boolean(clipboardCopyPending);
+      button.textContent = unavailable ? '无法复制' : clipboardCopyPending === key ? '复制中…' : clipboardCopiedKey === key ? '已复制' : button.dataset.copyLabel || '复制';
+    });
+  }
+  function copyClipboardReceipt(id,index=-1) {
+    if (clipboardCopyPending) return;
+    clipboardCopyPending = id + ':' + index;
+    updateClipboardCopyButtons();
+    send('clipboard-copy',{id,index});
+  }
   const clipboardImageState = new Map();
   const clipboardImageViews = new Map();
   let clipboardImageSelection = null;
@@ -74,14 +91,24 @@
   }
   function showClipboardImage(item, index) {
     clipboardImageSelection = item.id + ':' + index;
+    get('copy-clipboard-image').dataset.clipboardCopy = clipboardImageSelection;
+    get('copy-clipboard-image').dataset.copyLabel = '复制图片';
+    updateClipboardCopyButtons();
     get('clipboard-image-title').textContent = item.files[index];
     get('clipboard-image-status').textContent = '正在读取图片…';
     get('clipboard-image-full').hidden = true;
     get('clipboard-image-full').removeAttribute('src');
     if (!imageViewer.open) imageViewer.showModal();
+    get('copy-clipboard-image').dataset.clipboardCopy = clipboardImageSelection;
+    get('copy-clipboard-image').dataset.copyLabel = '复制图片'; updateClipboardCopyButtons();
     send('clipboard-image',{id:item.id,index,large:true});
   }
+  get('copy-clipboard-image').addEventListener('click',()=>{if(clipboardImageSelection){const [id,index]=clipboardImageSelection.split(':');copyClipboardReceipt(id,Number(index));}});
   get('close-clipboard-image').addEventListener('click',()=>imageViewer.close());
+  get('copy-clipboard-image').addEventListener('click',()=>{
+    if (!clipboardImageSelection) return;
+    const [id,index] = clipboardImageSelection.split(':'); copyClipboardReceipt(id,Number(index));
+  });
   imageViewer.addEventListener('click',event=>{if(event.target===imageViewer)imageViewer.close();});
   imageViewer.addEventListener('close',()=>{clipboardImageSelection=null;get('clipboard-image-full').removeAttribute('src');});
   function appendClipboardImages(row,item) {
@@ -249,8 +276,14 @@
         else { const detail=document.createElement('span');detail.textContent=item.kind==='text'?'旧记录未保存文字内容':(item.files||[]).join('、');row.append(detail); }
         if (item.kind !== 'text') appendClipboardImages(row,item);
         const time=document.createElement('time');time.textContent=new Date(item.at).toLocaleString();row.append(time);list.append(row);
-        if (item.kind !== 'text') { const open=document.createElement('button');open.className='secondary';open.textContent='打开文件位置';open.addEventListener('click',()=>send('open-clipboard-item',{id:item.id}));row.append(open); }
+        const actions=document.createElement('div');actions.className='button-row clipboard-receipt-actions';
+        const copy=document.createElement('button');copy.className='secondary';copy.dataset.clipboardCopy=item.id+':-1';copy.setAttribute('aria-label','复制这条'+(item.kind==='text'?'文字':item.kind==='image'?'图片':'文件'));
+        if(item.kind==='text'&&typeof item.text!=='string'){copy.dataset.unavailable='true';copy.title='旧记录未保存原文，无法复制';}
+        copy.addEventListener('click',()=>copyClipboardReceipt(item.id));actions.append(copy);
+        if (item.kind !== 'text') { const open=document.createElement('button');open.className='secondary';open.textContent='打开文件位置';open.addEventListener('click',()=>send('open-clipboard-item',{id:item.id}));actions.append(open); }
+        row.append(actions);
       }
+      updateClipboardCopyButtons();
     }
     get('status').textContent = state.busy ? '正在更新' : state.ready ? '通知接收已开启' : state.clipboardReady ? '剪贴板接收已开启' : state.receiving || state.clipboardEnabled ? '正在启动' : '接收已关闭';
     get('status').className = 'status' + (state.ready || state.clipboardReady ? ' on' : state.receiving || state.clipboardEnabled ? ' waiting' : '');
@@ -270,6 +303,17 @@
     const message = event.data;
     if (message.type === 'state') render(message);
     if (message.type === 'feedback') feedback(message.text);
+    if (message.type === 'clipboard-copy') {
+      const key = message.id + ':' + message.index;
+      if (clipboardCopyPending !== key) return;
+      clipboardCopyPending = null;
+      if (message.ok) {
+        clipboardCopiedKey = key; clearTimeout(clipboardCopyTimer);
+        clipboardCopyTimer = setTimeout(()=>{clipboardCopiedKey=null;updateClipboardCopyButtons();},2000);
+        feedback(message.kind === 'files' ? '文件已复制，可在文件夹中粘贴' : message.kind === 'image' ? '图片已复制，可直接粘贴' : '文字已复制，可直接粘贴');
+      } else feedback(message.error || '复制失败，请重试');
+      updateClipboardCopyButtons();
+    }
     if (message.type === 'clipboard-image') {
       const key = message.id + ':' + message.index;
       const data = typeof message.data === 'string' && message.data.startsWith('data:image/png;base64,') ? message.data : null;

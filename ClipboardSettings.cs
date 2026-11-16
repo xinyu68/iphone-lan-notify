@@ -8,12 +8,14 @@ using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.Threading;
 using System.Web.Script.Serialization;
+using System.Diagnostics;
 
 namespace Xinyu.PhoneNotifications
 {
     internal sealed partial class Controller
     {
         private readonly SemaphoreSlim clipboardImageReads = new SemaphoreSlim(2);
+        private bool clipboardCopying;
         private Dictionary<string, object> ReadClipboardState()
         {
             object receipts = new object[0];
@@ -36,25 +38,7 @@ namespace Xinyu.PhoneNotifications
         private void PublishClipboardText(string id)
         {
             try {
-                if (!System.Text.RegularExpressions.Regex.IsMatch(id,"\\A[a-f0-9]{32}\\z")) throw new InvalidOperationException();
-                var history = (object[])ReadClipboardState()["history"];
-                Dictionary<string,object> receipt = null;
-                foreach (object value in history) {
-                    var item = value as Dictionary<string,object>;
-                    if (item != null && Convert.ToString(item["id"]) == id && Convert.ToString(item["kind"]) == "text") { receipt = item; break; }
-                }
-                if (receipt == null) throw new InvalidOperationException();
-                object truncated;
-                string text;
-                if (receipt.TryGetValue("textTruncated",out truncated) && Convert.ToBoolean(truncated)) {
-                    string filename = Path.Combine(dataRoot,"clipboard-text",id+".txt");
-                    if (new FileInfo(filename).Length > 1024 * 1024) throw new InvalidOperationException();
-                    text = Encoding.UTF8.GetString(File.ReadAllBytes(filename));
-                } else {
-                    object saved;
-                    if (!receipt.TryGetValue("text",out saved) || !(saved is string)) throw new InvalidOperationException();
-                    text = (string)saved;
-                }
+                string text = ReadStoredClipboardText(id,FindClipboardReceipt(id));
                 PostDesktopMessage(new { type="clipboard-text", id=id, text=text });
             } catch { PostDesktopMessage(new { type="clipboard-text", id=id, error="这条记录没有保存文字内容，或内容已清理" }); }
         }
@@ -101,6 +85,88 @@ namespace Xinyu.PhoneNotifications
                     return "data:image/png;base64,"+Convert.ToBase64String(output.ToArray());
                 }
             }
+        }
+        private Dictionary<string,object> FindClipboardReceipt(string id)
+        {
+            if (!System.Text.RegularExpressions.Regex.IsMatch(id,"\\A[a-f0-9]{32}\\z")) throw new InvalidOperationException("无效的接收记录");
+            foreach (object value in (object[])ReadClipboardState()["history"]) {
+                var item = value as Dictionary<string,object>;
+                if (item != null && Convert.ToString(item["id"]) == id) return item;
+            }
+            throw new InvalidOperationException("这条接收记录已不存在");
+        }
+        private string ReadStoredClipboardText(string id, Dictionary<string,object> receipt)
+        {
+            if (Convert.ToString(receipt["kind"]) != "text") throw new InvalidOperationException("记录不是文字类型");
+            object truncated, saved;
+            string text;
+            if (receipt.TryGetValue("textTruncated",out truncated) && Convert.ToBoolean(truncated)) {
+                string directory = Path.Combine(dataRoot,"clipboard-text"), filename = Path.Combine(directory,id+".txt");
+                if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0 || (File.GetAttributes(filename) & FileAttributes.ReparsePoint) != 0 || new FileInfo(filename).Length > 1024*1024) throw new InvalidOperationException("文字原文已损坏或不可用");
+                text = Encoding.UTF8.GetString(File.ReadAllBytes(filename));
+            } else {
+                if (!receipt.TryGetValue("text",out saved) || !(saved is string)) throw new InvalidOperationException("旧记录未保存原文，无法复制");
+                text = (string)saved;
+            }
+            if (String.IsNullOrEmpty(text) || text.IndexOf('\0') >= 0 || Encoding.UTF8.GetByteCount(text) > 1024*1024) throw new InvalidOperationException("文字原文无效或过大");
+            return text;
+        }
+        private Dictionary<string,object> CreateClipboardCopyRequest(string id, int index)
+        {
+            var receipt = FindClipboardReceipt(id);
+            if (Convert.ToString(receipt["kind"]) == "text") {
+                if (index != -1) throw new InvalidOperationException("无效的文字复制参数");
+                return new Dictionary<string,object> { {"kind","text"}, {"text",ReadStoredClipboardText(id,receipt)} };
+            }
+            var names = receipt["files"] as object[];
+            if (names == null || names.Length < 1 || names.Length > 20 || index < -1 || index >= names.Length) throw new InvalidOperationException("无效的文件复制参数");
+            var files = new List<string>();
+            string directory = Path.Combine(dataRoot,"inbox",id);
+            if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) throw new InvalidOperationException("无效的接收文件夹");
+            for (int i=0;i<names.Length;i++) {
+                if (index >= 0 && index != i) continue;
+                string name = Convert.ToString(names[i]);
+                if (String.IsNullOrEmpty(name) || Path.GetFileName(name) != name || name.IndexOf(':') >= 0) throw new InvalidOperationException("无效的接收文件名");
+                string filename = Path.Combine(directory,name);
+                if (!File.Exists(filename) || (File.GetAttributes(filename) & FileAttributes.ReparsePoint) != 0) throw new InvalidOperationException("接收文件已删除或不可用");
+                long size = new FileInfo(filename).Length;
+                if (size > 50L*1024*1024) throw new InvalidOperationException("接收文件过大");
+                files.Add(filename);
+            }
+            bool image = files.Count == 1 && System.Text.RegularExpressions.Regex.IsMatch(files[0],"\\.(png|jpe?g)$",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (index >= 0 && !image) throw new InvalidOperationException("选中的文件不是支持复制的图片");
+            return new Dictionary<string,object> { {"kind",image ? "image" : "files"}, {"files",files.ToArray()} };
+        }
+        private async Task CopyClipboardReceiptAsync(string id, int index)
+        {
+            if (clipboardCopying) { PostDesktopMessage(new { type="clipboard-copy", id=id, index=index, ok=false, error="正在复制，请稍后重试" }); return; }
+            clipboardCopying = true;
+            try {
+                var request = CreateClipboardCopyRequest(id,index);
+                string kind = Convert.ToString(request["kind"]);
+                request["id"] = Guid.NewGuid().ToString("N");
+                string message = Convert.ToBase64String(Encoding.UTF8.GetBytes(json.Serialize(request)));
+                await Task.Run(delegate {
+                    var start = new ProcessStartInfo(Path.Combine(root,"ClipboardWorker.exe")) { WorkingDirectory=root, UseShellExecute=false, CreateNoWindow=true, RedirectStandardInput=true, RedirectStandardOutput=true, RedirectStandardError=true, StandardOutputEncoding=Encoding.UTF8 };
+                    start.EnvironmentVariables["PHONE_NOTIFY_DATA_DIR"] = dataRoot;
+                    using (var process = Process.Start(start)) {
+                        var output = process.StandardOutput.ReadToEndAsync(); var errors = process.StandardError.ReadToEndAsync();
+                        process.StandardInput.WriteLine(message); process.StandardInput.Close();
+                        if (!process.WaitForExit(20000)) { try { process.Kill(); } catch { } throw new InvalidOperationException("剪贴板复制超时，请重试"); }
+                        var serializer = new JavaScriptSerializer();
+                        foreach (string line in output.Result.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries)) {
+                            var reply = serializer.Deserialize<Dictionary<string,object>>(line);
+                            object replyId;
+                            if (!reply.TryGetValue("id",out replyId) || Convert.ToString(replyId) != Convert.ToString(request["id"])) continue;
+                            if (Convert.ToBoolean(reply["ok"])) return;
+                            throw new InvalidOperationException(Convert.ToString(reply["error"]));
+                        }
+                        throw new InvalidOperationException("剪贴板组件未完成复制，请重试");
+                    }
+                });
+                PostDesktopMessage(new { type="clipboard-copy", id=id, index=index, ok=true, kind=kind });
+            } catch (Exception error) { PostDesktopMessage(new { type="clipboard-copy", id=id, index=index, ok=false, error=error.Message }); }
+            finally { clipboardCopying = false; }
         }
     }
 }

@@ -68,3 +68,5 @@ Windows 10/11 x64 是目标环境。已在开发机器的 Windows 10 19045 验�
 单文件 50 MiB、单批 100 MiB/20 项，最多 8 个未完成任务；暂存任务 10 分钟过期，收件箱总量上限 1 GiB。文本最大 1 MiB，接收记录保留最近 50 次的文字正文。列表状态最多携带前 4000 个 UTF-16 代码单元，避免截断代理对；长文字全文保存在 `clipboard-text/<id>.txt`，桌面通过本地消息按需读取，关闭接收也可查看。读取前校验记录归属、ID 和文件大小，超出记录数量的全文文件自动清理。旧版只保存元数据的记录显示“旧记录未保存文字内容”。正文不写入运行日志。图片仅接受能解码的 PNG/JPEG，额外限制尺寸和像素总量。文件名清除路径分隔符、控制字符、Windows 保留设备名并去重，不执行文件。收件箱文件保留到用户删除，避免清理后使 CF_HDROP 中的路径失效。
 
 Scriptable 原生文档：[剪贴板](https://docs.scriptable.app/pasteboard/)、[分享参数及大文件限制](https://docs.scriptable.app/args/)、[Data 请求体](https://docs.scriptable.app/request/)。iPhone 真机的授权、分享入口、不同 App 复制内容类型和大文件内存行为仍需用户实测。
+
+接收记录的重新复制通过本机 WebView2 消息 `clipboard-copy` 触发，由桌面控制器校验保留记录及原文件路径后调用独立 `ClipboardWorker.exe`，无需开启接收服务，也不新增历史。长文字读取全文文件，图片使用原文件生成 Bitmap/PNG/文件列表。`node verify-clipboard-preview.cjs --live-clipboard` 可验证实际桌面历史复制；先保存、最后恢复原剪贴板，无法保存快照时取消测试。默认 `npm test` 只验证记录解析和复制参数，不读写系统剪贴板。
