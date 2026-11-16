@@ -25,7 +25,7 @@ function mockApi(options={}) {
       const body=JSON.parse(init.body);assert.equal(body.draft,true);assert.equal(body.target_commitish,'a'.repeat(40));
       state.release={id:7,...body,assets:[],upload_url:'https://'+(options.badHost?'untrusted.example':'uploads.github.com')+'/repos/example/app/releases/7/assets{?name,label}',html_url:'https://github.com/example/app/releases/tag/v1.2.0'};data=state.release;
     } else if(method==='PATCH'&&parsed.pathname.endsWith('/releases/7')) {
-      assert.equal(state.release.assets.length,2,'Both assets must exist before publishing');
+      assert.equal(state.release.assets.length,3,'Both assets must exist before publishing');
       assert.equal(JSON.parse(init.body).make_latest,'true');state.publishes++;state.release.draft=false;data=state.release;
     } else if(parsed.pathname.endsWith('/releases/tags/v1.2.0')||parsed.pathname.endsWith('/releases/7'))data=state.release;
     else throw Error('Unexpected API request: '+method+' '+parsed.pathname);
@@ -42,14 +42,14 @@ function mockApi(options={}) {
     const name='PhoneNotify-1.2.0-win-x64.zip',bytes=Buffer.from('Synthetic package fixture');
     fs.writeFileSync(path.join(root,'dist',name),bytes);fs.writeFileSync(path.join(root,'dist',name+'.sha256'),hash(bytes)+'  '+name+'\n');
     const context={root,repo:'example/app',tag:'v1.2.0',sha:'a'.repeat(40),token:'synthetic-token'};
-    const good=mockApi();const result=await publishRelease({...context,fetchImpl:good.fetchImpl});assert.equal(result.assets.length,2);assert.equal(good.state.uploads,2);assert.equal(good.state.publishes,1);
-    await publishRelease({...context,fetchImpl:good.fetchImpl});assert.equal(good.state.uploads,2);assert.equal(good.state.publishes,1,'Published rerun must not mutate release');
+    const good=mockApi();const result=await publishRelease({...context,fetchImpl:good.fetchImpl});assert.equal(result.assets.length,3);assert.equal(good.state.uploads,3);assert.equal(good.state.publishes,1);
+    await publishRelease({...context,fetchImpl:good.fetchImpl});assert.equal(good.state.uploads,3);assert.equal(good.state.publishes,1,'Published rerun must not mutate release');
     good.state.release.assets[0].digest='sha256:different';await assert.rejects(publishRelease({...context,fetchImpl:good.fetchImpl}),/differs/);assert.equal(good.state.publishes,1);
     for(const options of [{wrongCommit:true},{badHost:true},{badDigest:true},{latest:{id:8,tag_name:'v2.0.0'}}]) {
       const fixture=mockApi(options);await assert.rejects(publishRelease({...context,fetchImpl:fixture.fetchImpl}));assert.equal(fixture.state.publishes,0,'Invalid release must stay unpublished');
     }
     const retry=mockApi({failSecond:true});await assert.rejects(publishRelease({...context,fetchImpl:retry.fetchImpl}));assert.equal(retry.state.release.draft,true);assert.equal(retry.state.release.assets.length,1);
-    await publishRelease({...context,fetchImpl:retry.fetchImpl});assert.equal(retry.state.uploads,3,'Retry must reuse first asset');assert.equal(retry.state.publishes,1);
+    await publishRelease({...context,fetchImpl:retry.fetchImpl});assert.equal(retry.state.uploads,4,'Retry must reuse first asset');assert.equal(retry.state.publishes,1);
     const invalid=mockApi();await assert.rejects(publishRelease({...context,tag:'v1.2.1',fetchImpl:invalid.fetchImpl}),/version/);assert.equal(invalid.state.writes,0);
     fs.writeFileSync(path.join(root,'dist',name),'changed');await assert.rejects(publishRelease({...context,fetchImpl:invalid.fetchImpl}),/checksum/);assert.equal(invalid.state.writes,0);
     assert(compareVersions('1.10.0','1.2.0')>0);

@@ -1,12 +1,12 @@
 'use strict';
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
-const REPO='xinyu68/iphone-lan-notify',API='https://api.github.com/repos/'+REPO;
+const REPO='xinyu68/iphone-lan-notify',RELEASES='https://github.com/'+REPO+'/releases';
 const MAX_PACKAGE=200*1024*1024;
 function version(value){if(!/^\d{1,5}\.\d{1,5}\.\d{1,5}$/.test(value)||value.split('.').some(n=>+n>65534))throw Error('版本号无效');return value.split('.').map(Number);}
 function newer(left,right){const a=version(left),b=version(right);for(let i=0;i<3;i++)if(a[i]!==b[i])return a[i]>b[i];return false;}
 function releaseInfo(data,current){
   version(current);
-  if(!data||data.draft||data.prerelease||typeof data.tag_name!=='string'||!data.tag_name.startsWith('v'))throw Error('未找到正式版本');
+  if(!data||data.schemaVersion!==1||data.draft||data.prerelease||typeof data.tag_name!=='string'||!data.tag_name.startsWith('v'))throw Error('更新清单无效或未找到正式版本');
   const latest=data.tag_name.slice(1);version(latest);
   const prefix=`https://github.com/${REPO}/releases/download/v${latest}/`,name=`PhoneNotify-${latest}-win-x64.zip`;
   const asset=filename=>{const a=(data.assets||[]).find(x=>x.name===filename);if(!a||a.state!=='uploaded'||!Number.isSafeInteger(a.size)||a.size<1||a.size>MAX_PACKAGE||!/^sha256:[a-f0-9]{64}$/.test(a.digest)||a.browser_download_url!==prefix+filename)throw Error('新版安装包或校验文件不完整');return {name:a.name,size:a.size,sha256:a.digest.slice(7),url:a.browser_download_url};};
@@ -15,8 +15,10 @@ function releaseInfo(data,current){
 }
 async function getRelease(current,tag,fetchImpl=fetch){
   if(tag)version(tag);
-  const response=await fetchImpl(API+(tag?'/releases/tags/v'+tag:'/releases/latest'),{headers:{'User-Agent':'PhoneNotify-Updater',Accept:'application/vnd.github+json'},redirect:'error',signal:AbortSignal.timeout(20000)});
-  if(response.status===403||response.status===429)throw Error('GitHub 暂时限制访问，请稍后重试');
+  const response=await fetchImpl(RELEASES+(tag?'/download/v'+tag:'/latest/download')+'/update.json',{headers:{'User-Agent':'PhoneNotify-Updater',Accept:'application/json'},signal:AbortSignal.timeout(20000)});
+  if(response.status===429)throw Error('更新文件下载请求过于频繁，请稍后重试');
+  if(response.status===403)throw Error('GitHub 拒绝访问更新文件（HTTP 403），请稍后重试或打开 Releases 手动下载');
+  if(response.status===404)throw Error('此版本尚未提供更新清单，请打开 Releases 下载最新完整包');
   if(!response.ok)throw Error('检查更新失败（HTTP '+response.status+'）');
   const text=await response.text();if(text.length>1024*1024)throw Error('更新响应过大');
   return releaseInfo(JSON.parse(text),current);

@@ -17,7 +17,7 @@
     get('app-version').textContent='v'+update.current;
     get('check-update').disabled=false;
     get('check-update').textContent=updatePhase==='available'?'发现新版本':waiting?'更新中…':'检查更新';
-    get('update-versions').textContent='当前版本 v'+update.current+(update.latest?' · 最新正式版 v'+update.latest:'');
+    get('update-versions').textContent='当前版本 v'+update.current+(updatePhase!=='error'&&update.latest?' · 最新正式版 v'+update.latest:'');
     get('update-status').textContent=updatePhase==='checking'?'正在检查 GitHub Releases…':updatePhase==='available'?'有新版本可用':updatePhase==='current'?'已是最新版本':updatePhase==='downloading'?'正在下载安装包 '+(update.percent||0)+'%':updatePhase==='installing'?'正在校验和准备安装，即将自动重启…':updatePhase==='error'?update.error:'点击检查更新，获取最新正式版';
     if(updatePhase==='updated')get('update-status').textContent='已完成更新，当前版本 v'+update.current;
     get('update-progress').hidden=updatePhase!=='downloading';get('update-progress').value=update.percent||0;

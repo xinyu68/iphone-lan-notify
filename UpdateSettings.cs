@@ -30,7 +30,7 @@ namespace Xinyu.PhoneNotifications
         private async Task CheckUpdateAsync()
         {
             if (updateBusy) return;
-            updateBusy=true; updatePhase="checking"; updateError=""; PublishDesktopState();
+            updateBusy=true; updatePhase="checking"; updateError=""; latestVersion=""; updateNotes=""; PublishDesktopState();
             try {
                 var reply=await UpdateCommandAsync(new {action="check",current=AppVersion.Current});
                 latestVersion=Convert.ToString(reply["version"]);updateNotes=Convert.ToString(reply["notes"]);

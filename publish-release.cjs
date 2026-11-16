@@ -17,6 +17,8 @@ async function publishRelease({root=__dirname,repo,tag,sha,token,fetchImpl=fetch
   const zipName=`PhoneNotify-${version}-win-x64.zip`,checksumName=zipName+'.sha256';
   const assets=[zipName,checksumName].map(name=>{const bytes=fs.readFileSync(path.join(root,'dist',name));return {name,bytes,size:bytes.length,digest:'sha256:'+hash(bytes)};});
   if(!assets[0].size||assets[1].bytes.toString('utf8').replace(/^\uFEFF/,'').trim()!==assets[0].digest.slice(7)+'  '+zipName)throw Error('ZIP checksum does not match');
+  const updateBytes=Buffer.from(JSON.stringify({schemaVersion:1,tag_name:tag,draft:false,prerelease:false,commit:sha,body:notes,assets:assets.map(asset=>({name:asset.name,size:asset.size,state:'uploaded',digest:asset.digest,browser_download_url:`https://github.com/${repo}/releases/download/${tag}/${asset.name}`}))},null,2)+'\n');
+  assets.push({name:'update.json',bytes:updateBytes,size:updateBytes.length,digest:'sha256:'+hash(updateBytes)});
   const headers={Authorization:'Bearer '+token,Accept:'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'PhoneNotify-Release'};
   const base='https://api.github.com/repos/'+repo;
   async function request(url,method='GET',body,raw=false) {
