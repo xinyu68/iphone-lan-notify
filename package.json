@@ -3,7 +3,16 @@
   "version": "1.2.0",
   "private": true,
   "description": "Local iPhone notification receiver for Windows",
-  "scripts": { "start": "node receiver.cjs", "test": "node verify-all.cjs" },
+  "scripts": {
+    "start": "node receiver.cjs",
+    "test": "node verify-all.cjs"
+  },
   "license": "MIT",
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "libheif-js": "1.23.5",
+    "pngjs": "7.0.0"
+  }
 }

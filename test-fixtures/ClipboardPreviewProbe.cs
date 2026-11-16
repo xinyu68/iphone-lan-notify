@@ -10,6 +10,7 @@ namespace Xinyu.PhoneNotifications {
 internal sealed partial class Controller {
     private string dataRoot;
     private string root;
+    private string nodePath;
     private readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength=8*1024*1024 };
     private bool clipboardEnabled, enabled, busy;
     private object lastMessage;
@@ -67,7 +68,7 @@ internal sealed partial class Controller {
     }
     [STAThread]
     public static int Main(string[] args) {
-        var c=new Controller();c.dataRoot=args[0];c.root=args.Length>1?args[1]:null;string id=new string('a',32);
+        var c=new Controller();c.dataRoot=args[0];c.root=args.Length>1?args[1]:null;c.nodePath=Environment.GetEnvironmentVariable("PHONE_NOTIFY_TEST_NODE");string id=new string('a',32);
         string directory=Path.Combine(c.dataRoot,"inbox",id);Directory.CreateDirectory(directory);
         using(var image=new Bitmap(1600,1200)) {
             using(var g=Graphics.FromImage(image))g.Clear(Color.CornflowerBlue);
@@ -78,6 +79,15 @@ internal sealed partial class Controller {
         c.SaveReceipt(id,"sample.png");c.CheckImage(id,false,224,168);c.CheckImage(id,true,1280,960);
         c.SaveReceipt(id,"sample.jpg","files");c.CheckImage(id,false,224,168);
         c.CheckStoredCopies(id,directory,args.Length>2 && args[2]=="--live-clipboard");
+        File.Copy(Path.Combine(c.root,"test-fixtures","sample.heic"),Path.Combine(directory,"sample.heic"));
+        c.SaveReceipt(id,"sample.heic","files");c.CheckImage(id,false,16,12);c.CheckImage(id,true,16,12);
+        var heicCopy=c.CreateClipboardCopyRequest(id,-1);if(Convert.ToString(heicCopy["kind"])!="image" || !((string[])heicCopy["files"])[0].EndsWith(".png"))throw new Exception("HEIC clipboard conversion failed");
+        if(args.Length>2 && args[2]=="--live-clipboard") {
+            c.CopyClipboardReceiptAsync(id,-1).GetAwaiter().GetResult();
+            var reply=c.json.Deserialize<Dictionary<string,object>>(c.json.Serialize(c.lastMessage));
+            if(!Convert.ToBoolean(reply["ok"]) || !System.Windows.Forms.Clipboard.ContainsImage())throw new Exception("HEIC Windows clipboard copy failed");
+            using(var image=System.Windows.Forms.Clipboard.GetImage())if(image.Width!=16 || image.Height!=12)throw new Exception("HEIC clipboard size mismatch");
+        }
         c.Reject("../outside",0);c.Reject(new string('b',32),0);c.Reject(id,-1);c.Reject(id,20);c.Reject(id,1);
         c.SaveReceipt(id,"../sample.png");c.Reject(id,0);
         c.SaveReceipt(id,"sample.png:stream");c.Reject(id,0);
@@ -89,6 +99,6 @@ internal sealed partial class Controller {
         using(var stream=File.Create(Path.Combine(directory,"large.png")))stream.SetLength(51L*1024*1024);
         c.SaveReceipt(id,"large.png");c.Reject(id,0);
         c.SaveReceipt(id,"deleted.png");c.Reject(id,0);
-        Console.WriteLine("PASS: PNG/JPEG previews, stored full-text/original-image copy requests, disabled receiver, unchanged history, record/path/index bounds, format/size limits and missing content"+(args.Length>2?"; real Windows text/image clipboard copies verified":""));return 0;
+        Console.WriteLine("PASS: PNG/JPEG/HEIC previews, stored full-text/original-image copy requests, disabled receiver, unchanged history, record/path/index bounds, format/size limits and missing content"+(args.Length>2?"; real Windows text/image/HEIC clipboard copies verified":""));return 0;
     }
 }}

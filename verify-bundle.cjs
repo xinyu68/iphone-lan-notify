@@ -44,6 +44,13 @@ const bundle = path.resolve(process.argv[2] || path.join(__dirname, 'dist', `Pho
     assert(response.ok); return response.json();
   };
   try {
+    const heicId='e'.repeat(32),heicDirectory=path.join(data,'inbox',heicId);
+    fs.mkdirSync(heicDirectory,{recursive:true});
+    fs.copyFileSync(path.join(__dirname,'test-fixtures','sample.heic'),path.join(heicDirectory,'示例.heic'));
+    fs.writeFileSync(path.join(data,'clipboard-receipts.json'),JSON.stringify([{id:heicId,kind:'files',files:['示例.heic']}]));
+    const decoded=JSON.parse(execFileSync(node,[path.join(app,'heic-render.cjs')],{cwd:app,env,windowsHide:true,encoding:'utf8',input:JSON.stringify({dataRoot:data,id:heicId,index:0})}));
+    assert.equal(decoded.ok,true);assert.equal(decoded.width,16);assert.equal(decoded.height,12);
+    assert(fs.readFileSync(decoded.path).subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])));
     child = spawn(node, [path.join(app, 'receiver.cjs')], { cwd:app, env, windowsHide:true, stdio:'ignore' });
     const exited = new Promise(resolve => child.once('exit', resolve));
     let ready = false;
@@ -71,7 +78,7 @@ const bundle = path.resolve(process.argv[2] || path.join(__dirname, 'dist', `Pho
     await request('stop', { method:'POST' });
     await Promise.race([exited, delay(5000)]);
     assert(child.exitCode !== null);
-    const report = { result:'PASS', files:manifest.files.length, bundledNode:version, systemNodeOnPath:false, unicodeAndSpacePaths:true, programDirectoryWrites:false, nativeSmallIcon:true, builtinIcon:true, separateUserHistory:true };
+    const report = { result:'PASS', files:manifest.files.length, bundledNode:version, systemNodeOnPath:false, unicodeAndSpacePaths:true, programDirectoryWrites:false, nativeSmallIcon:true, builtinIcon:true, separateUserHistory:true, heicWithBundledCodecs:true };
     fs.mkdirSync(path.join(__dirname, '.verification'), {recursive:true});
     fs.writeFileSync(path.join(__dirname,'.verification','bundle-portability.json'), JSON.stringify(report,null,2));
     console.log(JSON.stringify(report));

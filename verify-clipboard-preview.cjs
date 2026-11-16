@@ -11,7 +11,7 @@ const root=fs.mkdtempSync(path.join(os.tmpdir(),'phone-preview-test-'));
   if(result.status!==0)throw Error(result.stdout+result.stderr);
   const args=[root,__dirname];
   if(process.argv.includes('--live-clipboard')){bridge=new ClipboardBridge(__dirname,root,true);await bridge.call({kind:'snapshot'});captured=true;args.push('--live-clipboard');}
-  const probe=spawnSync(executable,args,{encoding:'utf8',windowsHide:true,timeout:60000});
+  const probe=spawnSync(executable,args,{encoding:'utf8',windowsHide:true,timeout:60000,env:{...process.env,PHONE_NOTIFY_TEST_NODE:process.execPath}});
   if(probe.status!==0)throw Error(probe.stdout+probe.stderr);
   console.log(probe.stdout.trim());
 }finally{try{if(captured)await bridge.call({kind:'restore'});}finally{if(bridge)bridge.close();}assert.equal(path.dirname(fs.realpathSync(root)),fs.realpathSync(os.tmpdir()));fs.rmSync(root,{recursive:true,force:true});}})().catch(error=>{console.error(error);process.exitCode=1;});

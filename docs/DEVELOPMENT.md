@@ -1,5 +1,7 @@
 # 开发与验证
 
+源码测试前运行 `npm ci --ignore-scripts --no-audit --no-fund`，恢复锁定的图片解码依赖。
+
 ## 组成
 
 - `PhoneNotify.cs` / `DesktopSettings.cs` / `ConnectionSettings.cs`：WinForms 托盘与 WebView2 本地设置，接收开关、网络配置和登录自启。
@@ -10,6 +12,7 @@
 - `NativeNotifications.cs` / `NotificationActivation.cs`：Windows 通知来源注册、ICO、COM 激活和定位。点击卡片清除精确匹配的系统记录，不删除应用历史。
 - `app-icon-catalog.*` / `app-icon-cache.cjs`：内置身份与资源、通用在线匹配及缓存。
 - `clipboard-transfer.cjs` / `ClipboardWorker.cs`：有界文件上传、独立接收偏好、收件箱元数据，以及专用 STA 进程写入 Windows Unicode/Bitmap/PNG/CF_HDROP 剪贴板。
+- `heic-render.cjs` / `inbox-storage.cjs`：HEIC/HEIF 本机解码缓存及包含缓存的收件箱容量统计。原文件不改动，完整尺寸 PNG 用于预览和历史重新复制；最多 16384 像素边长、4000 万像素、50 MiB 输入。转换在独立 Node.js 进程中串行执行，60 秒超时，仅终止自行启动的子进程。
 - `public/clipboard-sender.js`：为当前电脑生成 Scriptable 发送代码，读取剪贴板或分享表单输入；它不会在后台持续监听剪贴板。
 - `public`：仅供桌面 WebView2 使用的本地 UI，不对手机提供设置网页。旧 `/setup/<token>` 返回 410。
 - 收件箱图片预览通过本地 WebView2 消息按需读取；校验记录 ID、文件索引、收件箱路径、文件大小和图片格式，拒绝重解析点。原图重新编码为 PNG，缩略图最多 224×168，放大图最多 1280×960；最多两项解码并行，预览不会把本机收件箱映射为网站目录。`verify-clipboard-preview.cjs` 编译实际 C# 读取代码，验证缩放和无效文件、越界路径等情况，不触碰系统剪贴板。
@@ -28,6 +31,10 @@ Content-Type: application/json
 成功返回 `{"ok":true,"id":"<16位编号>","accepted":true}`，表示已接收；显示由后台完成，状态随后变为 `shown` 或 `failed`。`GET /health` 不返回通知内容；带令牌的 `status`、`history-check`、`popup-check` 等接口供本机诊断。令牌相当于访问凭据，勿公开。
 
 ## 测试
+
+`verify-heic.cjs` 使用合成的 16×12 HEIC 验证解码、缓存复用、原文件不变、容量统计及无效输入。C# 预览测试同时验证 HEIC 缩略图、放大图及复制参数；可选 `--live-clipboard` 测试真实 Windows 图片复制后恢复剪贴板。`verify-bundle.cjs` 使用打包后的 Node.js 在无系统 Node.js PATH 的目录解码同一合成图。
+
+HEIC 原文件及 `inbox/<记录ID>/.heic-cache` 中的完整尺寸 PNG 都计入 1 GiB 收件箱上限；新上传及转换前分别重新统计。首次接收 HEIC 文件仍按文件传输，历史中的单张图片可转为位图重新复制。组件与构建来源见 [HEIC 组件说明](HEIC-CODECS.md)。README 截图使用最新本地 UI 与示例数据，不包含个人通知或配对凭据。
 
 `npm test` 不需要真实手机、不请求真实商店，覆盖格式、历史、缓存、30 个内置图标、Scriptable 失败静默，以及新的数据目录/运行时/首次配置行为。Windows 上会编译独立的环境探针测试实际 C# 配置初始化。
 

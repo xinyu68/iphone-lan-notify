@@ -6,7 +6,7 @@
 
 **[下载 Windows 程序](https://github.com/xinyu68/iphone-lan-notify/actions/workflows/windows-build.yml)** · [安装与连接](#安装与连接) · [通知同步](#通知同步) · [剪贴板与文件](#剪贴板与文件) · [常见问题](#常见问题) · [开发说明](docs/DEVELOPMENT.md)
 
-![手机通知桌面应用，界面地址为示例](docs/images/settings.png)
+![手机通知桌面应用，界面地址为示例](docs/images/desktop-notifications.png)
 
 ## 可以做什么
 
@@ -83,11 +83,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 **开机自启表示当前用户登录 Windows 后启动**，不是未登录时运行的系统服务。关闭窗口会隐藏到托盘，托盘菜单可彻底退出。
 
+![最新手机配置页：两项配置独立，电脑连接设置共用；全部为示例数据](docs/images/desktop-phone-setup.png)
+
 ## 通知同步
 
 ### 1. 保存 Scriptable 脚本
 
-在电脑应用 **手机配置** 页点击 **通知同步**，复制或导出发送代码，传到 iPhone，在 Scriptable 中保存为 **通知静默转发**。
+在电脑应用 **手机配置** 页点击 **通知同步配置**，复制或导出发送代码，传到 iPhone，在 Scriptable 中保存为 **通知静默转发**。
 
 ### 2. 导入或建立通知自动化
 
@@ -160,12 +162,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 在 iPhone“文件”“照片”等 App 中选中内容，点 **分享 → Scriptable 的运行脚本 → 发送到电脑**，具体入口名称以实际界面为准。文件请使用分享菜单发送，文件夹请先压缩。
 
-单张图像输入转换为 PNG，电脑同时获得位图、PNG 和文件列表格式；多张图像作为文件接收。分享的文件保留原始字节。收件箱记录可显示 PNG/JPEG 小图预览，每条最多四张，点击可放大查看；图片已删除或无法解码时显示提示，仍保留文件位置入口。预览从本机文件读取，关闭接收后也能查看。目标应用能否接受图片或文件粘贴，取决于该应用对剪贴板格式的支持。
+单张图像输入转换为 PNG，电脑同时获得位图、PNG 和文件列表格式；多张图像作为文件接收。分享的文件保留原始字节。收件箱记录可显示 PNG/JPEG、HEIC/HEIF 小图预览，每条最多四张，点击可放大查看；图片已删除或无法解码时显示提示，仍保留文件位置入口。预览从本机文件读取，关闭接收后也能查看。目标应用能否接受图片或文件粘贴，取决于该应用对剪贴板格式的支持。
 
 <details>
 <summary>查看剪贴板收件箱界面</summary>
 
-![剪贴板收件箱，界面地址为示例](docs/images/clipboard.png)
+![最新剪贴板收件箱：文字、HEIC 预览与重新复制；全部为示例数据](docs/images/desktop-clipboard.png)
+
+HEIC/HEIF 原文件保持不变，首次查看时在本机解码并缓存 PNG，可放大查看或通过“复制图片”粘贴。无需安装 Windows HEIF/HEVC 扩展，不上传图片进行转换。首次解码比缓存预览慢，转换缓存计入收件箱 1 GiB 上限。超过 4000 万像素、文件损坏或空间不足时保留文件入口并提示无法预览。
 
 </details>
 
@@ -181,7 +185,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 收到内容会 **替换 Windows 当前剪贴板**。图片和文件保存在收件箱，直到用户自行删除；应用中可以打开接收文件夹或对应文件位置。
 
-接收记录中的 **复制** 按钮可重新复制已保存的文字、图片或文件，关闭手机接收后也能使用。长文字复制全文，单张 PNG/JPEG 使用保存的原图；多文件记录复制文件列表，放大预览中的“复制图片”可单独复制该张图片。复制不会新增接收记录；未保存原文的旧文字记录无法补回，文件已删除时会提示不可用。
+接收记录中的 **复制** 按钮可重新复制已保存的文字、图片或文件，关闭手机接收后也能使用。长文字复制全文，单张 PNG/JPEG 使用保存的原图，HEIC/HEIF 使用本机转换的完整尺寸 PNG；多文件记录复制原文件列表，放大预览中的“复制图片”可单独复制该张图片。复制不会新增接收记录；未保存原文的旧文字记录无法补回，文件已删除时会提示不可用。
 
 较大文件或图像可能触及 iOS 扩展内存限制，被系统中止时可开启“在 App 中运行”重试，此时会进入 Scriptable。手动发送失败会显示失败通知；通知自动转发失败则静默跳过。
 
@@ -236,17 +240,18 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 ## 从源码构建
 
-需要 Windows x64、Node.js 20+（推荐 22/24）、Windows PowerShell 5.1 和 .NET Framework 4.6.2+，无需 `npm install`。
+需要 Windows x64、Node.js 20+（推荐 22/24）、Windows PowerShell 5.1 和 .NET Framework 4.6.2+。源码测试前需恢复锁定版本的图片解码依赖；完整发行包已包含这些组件。
 
 ```powershell
 git clone https://github.com/xinyu68/iphone-lan-notify.git
 cd iphone-lan-notify
+npm ci --ignore-scripts --no-audit --no-fund
 npm test
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-app.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File .\build-release.ps1 -SkipBuild
 ```
 
-构建自动下载固定版本的 WebView2 SDK；完整打包时下载 `node-runtime.json` 指定的官方 Node.js，并校验 SHA-256。输出在 `dist`，包含完整文件清单和 ZIP 校验文件。输出目录已存在时，应先移走旧产物再打包。
+构建自动下载固定版本的 WebView2 SDK；完整打包时下载 `node-runtime.json` 指定的官方 Node.js，并校验 SHA-256。打包还会恢复锁定版本的 HEIC/PNG 解码组件，附带其许可和经校验的对应源码。输出在 `dist`，包含完整文件清单和 ZIP 校验文件。输出目录已存在时，应先移走旧产物再打包。
 
 源码不提交个人配置、运行记录、运行时或 EXE。测试范围、桌面集成检查和 API 示例见 [开发说明](docs/DEVELOPMENT.md)。
 

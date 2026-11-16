@@ -16,6 +16,8 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Restore pinned image codecs
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Test without personal configuration
         run: npm test
       - name: Build complete Windows bundle

@@ -112,7 +112,7 @@
   imageViewer.addEventListener('click',event=>{if(event.target===imageViewer)imageViewer.close();});
   imageViewer.addEventListener('close',()=>{clipboardImageSelection=null;get('clipboard-image-full').removeAttribute('src');});
   function appendClipboardImages(row,item) {
-    const images = (item.files || []).map((name,index)=>({name,index})).filter(file=>/\.(png|jpe?g)$/i.test(file.name)).slice(0,4);
+    const images = (item.files || []).map((name,index)=>({name,index})).filter(file=>/\.(png|jpe?g|heic|heif)$/i.test(file.name)).slice(0,4);
     if (!images.length) return;
     const list = document.createElement('div'); list.className = 'clipboard-image-list'; row.append(list);
     for (const file of images) {

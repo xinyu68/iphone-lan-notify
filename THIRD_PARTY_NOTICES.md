@@ -1,5 +1,8 @@
 # 第三方组件与资源
 
+- **libheif-js 1.23.5 / libheif / libde265**：用于 HEIC/HEIF 本机解码，遵循其 LGPL 条款。发行包保留 `node_modules/libheif-js/LICENSE`、`node_modules/libheif-js/libheif-wasm/LICENSE`，并在 `licenses/codec-sources` 附带对应源码和构建脚本。模块未修改，可用兼容版本替换；本项目许可不限制用户为调试这些 LGPL 组件的修改而进行逆向工程。版本、源码提交及构建方法见 [HEIC 组件说明](docs/HEIC-CODECS.md) 和 `codec-sources.json`。
+- **pngjs 7.0.0**：MIT，用于将解码像素写为 PNG；许可保留在发行包 `node_modules/pngjs/LICENSE`。
+
 项目自有源代码采用 MIT 许可证；以下第三方组件、应用图标、名称和商标不因本项目的 LICENSE 改变其许可或权利归属。
 
 - **Node.js**：发行包在 `runtime/LICENSE` 中附带官方许可及所含第三方声明。下载版本和官方发行包 SHA-256 固定在 `node-runtime.json`；运行时不提交到源码仓库。

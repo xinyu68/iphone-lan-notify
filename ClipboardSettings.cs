@@ -15,11 +15,13 @@ namespace Xinyu.PhoneNotifications
     internal sealed partial class Controller
     {
         private readonly SemaphoreSlim clipboardImageReads = new SemaphoreSlim(2);
+        private readonly object heicConversionGate = new object();
+        private readonly Dictionary<string,string> heicImages = new Dictionary<string,string>();
         private bool clipboardCopying;
         private Dictionary<string, object> ReadClipboardState()
         {
             object receipts = new object[0];
-            try { receipts = json.DeserializeObject(File.ReadAllText(Path.Combine(dataRoot,"clipboard-receipts.json"),Encoding.UTF8)) as object[] ?? new object[0]; } catch { }
+            try { receipts = new JavaScriptSerializer { MaxJsonLength=8*1024*1024 }.DeserializeObject(File.ReadAllText(Path.Combine(dataRoot,"clipboard-receipts.json"),Encoding.UTF8)) as object[] ?? new object[0]; } catch { }
             return new Dictionary<string, object> { { "enabled", clipboardEnabled }, { "history", receipts } };
         }
         private async Task ChangeClipboardAsync(bool value)
@@ -70,6 +72,7 @@ namespace Xinyu.PhoneNotifications
             if ((File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0 || (File.GetAttributes(filename) & FileAttributes.ReparsePoint) != 0) throw new InvalidOperationException();
             long size = new FileInfo(filename).Length;
             if (size <= 0 || size > 50L * 1024 * 1024) throw new InvalidOperationException();
+            if (IsHeic(filename)) filename = ResolveHeicImage(id,index,filename);
             using (var stream = File.OpenRead(filename))
             using (var source = Image.FromStream(stream,true,true)) {
                 if (source.RawFormat.Guid != ImageFormat.Png.Guid && source.RawFormat.Guid != ImageFormat.Jpeg.Guid) throw new InvalidOperationException();
@@ -133,8 +136,9 @@ namespace Xinyu.PhoneNotifications
                 if (size > 50L*1024*1024) throw new InvalidOperationException("接收文件过大");
                 files.Add(filename);
             }
-            bool image = files.Count == 1 && System.Text.RegularExpressions.Regex.IsMatch(files[0],"\\.(png|jpe?g)$",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            bool image = files.Count == 1 && System.Text.RegularExpressions.Regex.IsMatch(files[0],"\\.(png|jpe?g|heic|heif)$",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
             if (index >= 0 && !image) throw new InvalidOperationException("选中的文件不是支持复制的图片");
+            if (image && IsHeic(files[0])) files[0] = ResolveHeicImage(id,index < 0 ? 0 : index,files[0]);
             return new Dictionary<string,object> { {"kind",image ? "image" : "files"}, {"files",files.ToArray()} };
         }
         private async Task CopyClipboardReceiptAsync(string id, int index)
@@ -142,7 +146,7 @@ namespace Xinyu.PhoneNotifications
             if (clipboardCopying) { PostDesktopMessage(new { type="clipboard-copy", id=id, index=index, ok=false, error="正在复制，请稍后重试" }); return; }
             clipboardCopying = true;
             try {
-                var request = CreateClipboardCopyRequest(id,index);
+                var request = await Task.Run(delegate { return CreateClipboardCopyRequest(id,index); });
                 string kind = Convert.ToString(request["kind"]);
                 request["id"] = Guid.NewGuid().ToString("N");
                 string message = Convert.ToBase64String(Encoding.UTF8.GetBytes(json.Serialize(request)));
@@ -167,6 +171,35 @@ namespace Xinyu.PhoneNotifications
                 PostDesktopMessage(new { type="clipboard-copy", id=id, index=index, ok=true, kind=kind });
             } catch (Exception error) { PostDesktopMessage(new { type="clipboard-copy", id=id, index=index, ok=false, error=error.Message }); }
             finally { clipboardCopying = false; }
+        }
+        private static bool IsHeic(string filename)
+        {
+            return System.Text.RegularExpressions.Regex.IsMatch(filename,"\\.(heic|heif)$",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        }
+        private string ResolveHeicImage(string id, int index, string source)
+        {
+            lock (heicConversionGate) {
+                var info = new FileInfo(source);
+                string key = id+":"+index+":"+info.Length+":"+info.LastWriteTimeUtc.Ticks;
+                string existing;
+                if (heicImages.TryGetValue(key,out existing) && File.Exists(existing)) return existing;
+                var serializer = new JavaScriptSerializer();
+                var start = new ProcessStartInfo(nodePath,"\""+Path.Combine(root,"heic-render.cjs")+"\"") { WorkingDirectory=root, UseShellExecute=false, CreateNoWindow=true, RedirectStandardInput=true, RedirectStandardOutput=true, RedirectStandardError=true, StandardOutputEncoding=Encoding.UTF8 };
+                using (var process = Process.Start(start)) {
+                    var output=process.StandardOutput.ReadToEndAsync();var errors=process.StandardError.ReadToEndAsync();
+                    process.StandardInput.WriteLine(serializer.Serialize(new {dataRoot=dataRoot,id=id,index=index}));process.StandardInput.Close();
+                    if (!process.WaitForExit(60000)) { try {process.Kill();}catch{}throw new InvalidOperationException("HEIC 图片转换超时，请重试"); }
+                    if (process.ExitCode != 0) throw new InvalidOperationException("HEIC 图片无法转换，请确认文件完整或收件箱空间充足");
+                    var lines=output.Result.Split(new[]{'\r','\n'},StringSplitOptions.RemoveEmptyEntries);
+                    if (lines.Length == 0) throw new InvalidOperationException("HEIC 图片转换未完成");
+                    var result=serializer.Deserialize<Dictionary<string,object>>(lines[lines.Length-1]);
+                    if (!Convert.ToBoolean(result["ok"])) throw new InvalidOperationException("HEIC 图片无法转换");
+                    string filename=Path.GetFullPath(Convert.ToString(result["path"]));
+                    string directory=Path.GetFullPath(Path.Combine(dataRoot,"inbox",id,".heic-cache"))+Path.DirectorySeparatorChar;
+                    if (!filename.StartsWith(directory,StringComparison.OrdinalIgnoreCase) || Path.GetExtension(filename)!=".png" || !File.Exists(filename) || (File.GetAttributes(filename)&FileAttributes.ReparsePoint)!=0) throw new InvalidOperationException("无效的 HEIC 转换结果");
+                    heicImages[key]=filename;return filename;
+                }
+            }
         }
     }
 }

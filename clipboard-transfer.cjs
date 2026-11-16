@@ -6,6 +6,7 @@ const readline = require('node:readline');
 const { spawn } = require('node:child_process');
 const { Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
+const { inboxBytes } = require('./inbox-storage.cjs');
 const MAX_FILE = 50 * 1024 * 1024;
 const MAX_BATCH = 100 * 1024 * 1024;
 const MAX_TEXT = 1024 * 1024;
@@ -66,10 +67,7 @@ class ClipboardTransfer {
     this.inbox=path.join(dataRoot,'inbox');this.staging=path.join(dataRoot,'.incoming');this.textRoot=path.join(dataRoot,'clipboard-text');
     fs.mkdirSync(this.inbox,{recursive:true});fs.mkdirSync(this.staging,{recursive:true});fs.mkdirSync(this.textRoot,{recursive:true});
     try { const history=JSON.parse(fs.readFileSync(path.join(dataRoot,'clipboard-receipts.json'),'utf8'));if(Array.isArray(history))this.receipts=history.filter(item=>item&&/^[a-f0-9]{32}$/.test(item.id)&&['text','image','files'].includes(item.kind)&&Array.isArray(item.files)&&item.files.every(file=>typeof file==='string')&&Number.isFinite(Date.parse(item.at))).slice(0,50); } catch {}
-    this.used=0;
-    for(const entry of fs.readdirSync(this.inbox,{withFileTypes:true})) {
-      if(entry.isDirectory()&&!entry.isSymbolicLink()&&/^[a-f0-9]{32}$/.test(entry.name))for(const file of fs.readdirSync(path.join(this.inbox,entry.name),{withFileTypes:true}))if(file.isFile())this.used+=fs.statSync(path.join(this.inbox,entry.name,file.name)).size;
-    }
+    this.used=this.storageBytes();
     this.timer=setInterval(()=>this.expire(),30000);this.timer.unref();
   }
   cleanupStaging() {
@@ -85,9 +83,7 @@ class ClipboardTransfer {
   check() { if(!this.enabled())throw statusError('电脑未开启“接收手机剪贴板”',403); }
   status() {return {enabled:this.enabled(),history:this.receipts,inbox:this.inbox,maxFileBytes:MAX_FILE,maxBatchBytes:MAX_BATCH,maxTextBytes:MAX_TEXT,maxFiles:20};}
   storageBytes() {
-    let bytes=0;
-    for(const entry of fs.readdirSync(this.inbox,{withFileTypes:true}))if(entry.isDirectory()&&!entry.isSymbolicLink()&&/^[a-f0-9]{32}$/.test(entry.name))for(const file of fs.readdirSync(path.join(this.inbox,entry.name),{withFileTypes:true}))if(file.isFile())bytes+=fs.statSync(path.join(this.inbox,entry.name,file.name)).size;
-    return bytes;
+    return inboxBytes(this.inbox);
   }
   record(item) {this.receipts.unshift({...item,at:new Date(this.now()).toISOString()});this.receipts.length=Math.min(this.receipts.length,50);fs.writeFileSync(path.join(this.dataRoot,'clipboard-receipts.json.tmp'),JSON.stringify(this.receipts));fs.renameSync(path.join(this.dataRoot,'clipboard-receipts.json.tmp'),path.join(this.dataRoot,'clipboard-receipts.json'));this.cleanupText();}
   expire() {for(const [id,session] of this.sessions)if(session.expires<this.now()&&!session.uploading&&!session.committing){this.sessions.delete(id);if(!session.moved){this.reserved-=session.total;fs.rmSync(path.join(this.staging,id),{recursive:true,force:true});}}}
@@ -115,6 +111,7 @@ class ClipboardTransfer {
       });
       const total=files.reduce((sum,file)=>sum+file.size,0);
       if(total>MAX_BATCH)throw statusError('一次发送合计最多 100 MiB',413);
+      this.used=this.storageBytes();
       if(this.used+this.reserved+total>MAX_STORAGE){this.used=this.storageBytes();if(this.used+this.reserved+total>MAX_STORAGE)throw statusError('收件箱已达到 1 GiB，请在电脑清理后重试',507);}
       const id=crypto.randomBytes(16).toString('hex');fs.mkdirSync(path.join(this.staging,id));
       this.sessions.set(id,{id,kind:input.kind,files,total,expires:this.now()+10*60000,uploading:0,committed:false});this.reserved+=total;
