@@ -13,6 +13,7 @@ function fixture(name,extra){
   fs.copyFileSync(path.join(root,'stub.exe'),path.join(app,'PhoneNotify.exe'));
   fs.writeFileSync(path.join(app,'package.json'),'old package');fs.mkdirSync(path.join(app,'public'));fs.writeFileSync(path.join(app,'public','desktop.html'),'old UI');fs.writeFileSync(path.join(app,'receiver.cjs'),'old receiver');
   fs.writeFileSync(path.join(data,'config.json'),'private pairing fixture');fs.writeFileSync(path.join(app,'config.json'),'legacy pairing fixture');fs.writeFileSync(path.join(data,'preferences.json'),'preferences fixture');
+  fs.writeFileSync(path.join(data,'update-result.json'),JSON.stringify({ok:true,version:'1.2.1',at:'2026-01-01T00:00:00Z'}));
   const files={'PhoneNotify.exe':fs.readFileSync(path.join(root,'stub.exe')),'package.json':JSON.stringify({version:'1.3.0'}),'public/desktop.html':'new UI','updater.cjs':'updater','apply-update.ps1':'installer','receiver.cjs':'new receiver','runtime/node.exe':'runtime fixture','README.md':'readme','LICENSE':'license','public/app.js':'script',...extra};
   const entries=[];for(const [name,content]of Object.entries(files)){const filename=path.join(source,name);fs.mkdirSync(path.dirname(filename),{recursive:true});fs.writeFileSync(filename,content);entries.push({path:name,sha256:hash(filename)});}
   fs.writeFileSync(path.join(source,'bundle-manifest.json'),JSON.stringify({version:'1.3.0',files:entries}));
@@ -43,6 +44,6 @@ const args=(f,pid)=>['-AppRoot',f.app,'-DataRoot',f.data,'-Stage',f.stage,'-Pare
     assert.equal(fs.readFileSync(path.join(f.data,'config.json'),'utf8'),'private pairing fixture');assert.equal(fs.readFileSync(path.join(f.app,'config.json'),'utf8'),'legacy pairing fixture');assert.equal(fs.readFileSync(path.join(f.data,'preferences.json'),'utf8'),'preferences fixture');
     if(locker){locker.kill();locker=null;}parent=null;installer=null;await wait(1300);
   }
-  console.log('PASS: real Windows updater validates archives, refuses user-data overwrite/corruption, waits for the owned app to exit, installs/restarts and rolls back on file lock; pairing/preferences preserved');
+  console.log('PASS: real Windows updater validates archives, refuses user-data overwrite/corruption, waits for the owned app to exit, installs/restarts and rolls back on file lock; pairing/preferences preserved and previous update results atomically replaced');
  }finally{for(const child of [parent,installer,locker])if(child&&child.exitCode===null)child.kill();await wait(1300);assert.equal(path.dirname(fs.realpathSync(root)),fs.realpathSync(os.tmpdir()));fs.rmSync(root,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1;});

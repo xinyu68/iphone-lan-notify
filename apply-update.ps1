@@ -9,7 +9,7 @@ if($app -eq [IO.Path]::GetPathRoot($app).TrimEnd('\') -or $app -eq $env:USERPROF
 foreach($directory in @($app,$data,$updates,$stagePath)){if((Get-Item -LiteralPath $directory).Attributes -band [IO.FileAttributes]::ReparsePoint){throw 'Update path is a link'}}
 $result=Join-Path $data 'update-result.json'
 $copied=@();$backup=Join-Path $stagePath 'backup';$exited=$false;$appChanged=$false
-function Save-Result($value){$body=$value|ConvertTo-Json -Depth 5;$temporary=$result+'.'+[Guid]::NewGuid().ToString('N')+'.tmp';[IO.File]::WriteAllText($temporary,$body,(New-Object Text.UTF8Encoding($false)));if([IO.File]::Exists($result)){[IO.File]::Replace($temporary,$result,$null)}else{[IO.File]::Move($temporary,$result)};$body|Set-Content -LiteralPath (Join-Path $stagePath 'result.json') -Encoding UTF8}
+function Save-Result($value){$body=$value|ConvertTo-Json -Depth 5;$temporary=$result+'.'+[Guid]::NewGuid().ToString('N')+'.tmp';[IO.File]::WriteAllText($temporary,$body,(New-Object Text.UTF8Encoding($false)));if([IO.File]::Exists($result)){[IO.File]::Replace($temporary,$result,[NullString]::Value)}else{[IO.File]::Move($temporary,$result)};$body|Set-Content -LiteralPath (Join-Path $stagePath 'result.json') -Encoding UTF8}
 try {
     $meta=Get-Content -LiteralPath (Join-Path $stagePath 'download.json') -Raw -Encoding UTF8|ConvertFrom-Json
     if($meta.version -notmatch '^\d{1,5}\.\d{1,5}\.\d{1,5}$' -or $meta.sha256 -notmatch '^[a-f0-9]{64}$'){throw 'Invalid update metadata'}
