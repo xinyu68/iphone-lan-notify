@@ -82,7 +82,7 @@ namespace Xinyu.PhoneNotifications
         private readonly string receiverPath;
         private string receiverOrigin;
         private string accessToken;
-        private readonly JavaScriptSerializer json = new JavaScriptSerializer();
+        private readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = 8 * 1024 * 1024 };
         private readonly EventWaitHandle openSignal;
         private readonly EventWaitHandle exitSignal;
         private readonly EventWaitHandle onSignal;

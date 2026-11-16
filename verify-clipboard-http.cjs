@@ -39,7 +39,8 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     const actual=await probe.call({kind:'inspect'});assert.equal(actual.files.length,2);for(let index=0;index<2;index++)assert.deepEqual(fs.readFileSync(actual.files[index]),bytes[index]);
     assert.equal((await request('notify',{message:'notification is disabled'})).status,403);
     settings(false);assert.equal((await request('clipboard',{kind:'text',text:'after disable'})).status,403);assert.deepEqual((await probe.call({kind:'inspect'})).files,actual.files);
-    for(const file of ['receiver.log','runtime.json','clipboard-receipts.json'])assert(!fs.readFileSync(path.join(data,file),'utf8').includes(text));
+    for(const file of ['receiver.log','runtime.json'])assert(!fs.readFileSync(path.join(data,file),'utf8').includes(text));
+    assert.equal(JSON.parse(fs.readFileSync(path.join(data,'clipboard-receipts.json'),'utf8')).find(item=>item.kind==='text').text,text);
     await request('stop');await delay(2200);assert(child.exitCode!==null,'all receiver workers stop');
     console.log('PASS: real authenticated HTTP text/image/multi-file to Windows clipboard, byte integrity, independent notification/clipboard switches, origin/token rejection, switch-off preserves clipboard, no text logs and clean shutdown');
   }finally{

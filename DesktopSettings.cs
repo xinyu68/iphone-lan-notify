@@ -111,6 +111,7 @@ namespace Xinyu.PhoneNotifications
                 else if (action == "firewall") { if (!busy) await ConfigureFirewallAsync(); }
                 else if (action == "receiving") { if (!busy) await ChangeReceiving(Convert.ToBoolean(message["enabled"])); }
                 else if (action == "clipboard-enabled") { if (!busy) await ChangeClipboardAsync(Convert.ToBoolean(message["enabled"])); }
+                else if (action == "clipboard-text") { PublishClipboardText(Convert.ToString(message["id"])); }
                 else if (action == "open-inbox") { string directory = Path.Combine(dataRoot,"inbox"); Directory.CreateDirectory(directory); Process.Start(new ProcessStartInfo("explorer.exe", "\"" + directory + "\"") { UseShellExecute = true }); }
                 else if (action == "open-clipboard-item") {
                     string id = Convert.ToString(message["id"]);

@@ -17,6 +17,9 @@
 .clipboard-note{color:#7b8a9b;font-size:12px;line-height:1.9}
 .clipboard-receipt{display:flex;flex-direction:column;gap:6px;border-bottom:1px solid #edf0f5;padding:14px 0;font-size:12px;overflow-wrap:anywhere}
 .clipboard-receipt span,.clipboard-receipt time{color:#7b8a9b;font-size:11px}
+.clipboard-text{margin:2px 0;color:#52677e;font-size:12px;line-height:1.8;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
+.clipboard-text.expanded{display:block;max-height:480px;overflow:auto}
+.clipboard-text-toggle{align-self:flex-start;padding:2px 0;border:0;background:transparent;color:var(--accent);font-size:11px;line-height:1.8}
 .controls{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
 .controls .control{align-items:flex-start;gap:14px;min-width:0}
 .controls .control>div{min-width:0}

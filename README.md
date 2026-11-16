@@ -173,11 +173,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 | 项目 | 上限或行为 |
 | --- | --- |
-| 纯文字 | 1 MiB，不保存文字剪贴板历史 |
+| 纯文字 | 1 MiB，正文在本机接收记录中保存，保留换行，长内容可展开查看 |
 | 单个文件 | 50 MiB |
 | 单次发送 | 最多 20 个文件，合计 100 MiB |
 | 本机收件箱 | 1 GiB，达到后需清理才能继续接收文件 |
-| 接收记录 | 最近 50 次元数据，只记录时间、类型和文件名等信息 |
+| 接收记录 | 最近 50 次，保存文字正文、时间、类型和文件名；超出后清理旧文字记录 |
 
 收到内容会 **替换 Windows 当前剪贴板**。图片和文件保存在收件箱，直到用户自行删除；应用中可以打开接收文件夹或对应文件位置。
 
@@ -216,7 +216,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 | `.notification-history.json` | 本机通知文字记录 |
 | `.icon-cache` | App 图标与商店元数据 |
 | `inbox` | 接收的图片与文件，由用户自行清理 |
-| `clipboard-receipts.json` | 最近 50 次接收元数据，不含文字正文 |
+| `clipboard-receipts.json` | 最近 50 次接收记录，包含文字正文或长文字预览 |
+| `clipboard-text` | 长文字全文，按需读取；随接收记录淘汰自动清理 |
 | `.incoming` | 未完成上传暂存，过期或下次启动时清理 |
 | `.webview2-profile` | 桌面界面的 WebView2 数据 |
 | `runtime.json`、`controller-state.json`、`receiver.log` | 服务状态与日志 |

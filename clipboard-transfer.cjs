@@ -9,6 +9,7 @@ const { pipeline } = require('node:stream/promises');
 const MAX_FILE = 50 * 1024 * 1024;
 const MAX_BATCH = 100 * 1024 * 1024;
 const MAX_TEXT = 1024 * 1024;
+const TEXT_PREVIEW = 4000;
 const MAX_STORAGE = 1024 * 1024 * 1024;
 const statusError = (message, status = 400) => Object.assign(Error(message), { status });
 function settings(dataRoot) {
@@ -62,8 +63,8 @@ class ClipboardBridge {
 class ClipboardTransfer {
   constructor({root,dataRoot,bridge,now=Date.now}) {
     this.root=root;this.dataRoot=dataRoot;this.now=now;this.bridge=bridge||new ClipboardBridge(root,dataRoot);this.sessions=new Map();this.receipts=[];this.reserved=0;this.closed=false;
-    this.inbox=path.join(dataRoot,'inbox');this.staging=path.join(dataRoot,'.incoming');
-    fs.mkdirSync(this.inbox,{recursive:true});fs.mkdirSync(this.staging,{recursive:true});
+    this.inbox=path.join(dataRoot,'inbox');this.staging=path.join(dataRoot,'.incoming');this.textRoot=path.join(dataRoot,'clipboard-text');
+    fs.mkdirSync(this.inbox,{recursive:true});fs.mkdirSync(this.staging,{recursive:true});fs.mkdirSync(this.textRoot,{recursive:true});
     try { const history=JSON.parse(fs.readFileSync(path.join(dataRoot,'clipboard-receipts.json'),'utf8'));if(Array.isArray(history))this.receipts=history.filter(item=>item&&/^[a-f0-9]{32}$/.test(item.id)&&['text','image','files'].includes(item.kind)&&Array.isArray(item.files)&&item.files.every(file=>typeof file==='string')&&Number.isFinite(Date.parse(item.at))).slice(0,50); } catch {}
     this.used=0;
     for(const entry of fs.readdirSync(this.inbox,{withFileTypes:true})) {
@@ -74,6 +75,11 @@ class ClipboardTransfer {
   cleanupStaging() {
     // Call only after owning the listening port; duplicate launches must not touch active uploads.
     for(const entry of fs.readdirSync(this.staging,{withFileTypes:true}))if(entry.isDirectory()&&!entry.isSymbolicLink()&&/^[a-f0-9]{32}$/.test(entry.name))fs.rmSync(path.join(this.staging,entry.name),{recursive:true,force:true});
+    this.cleanupText();
+  }
+  cleanupText() {
+    const retained=new Set(this.receipts.filter(item=>item.kind==='text'&&item.textTruncated===true).map(item=>item.id+'.txt'));
+    for(const entry of fs.readdirSync(this.textRoot,{withFileTypes:true}))if(entry.isFile()&&/^[a-f0-9]{32}\.txt$/.test(entry.name)&&!retained.has(entry.name))fs.unlinkSync(path.join(this.textRoot,entry.name));
   }
   enabled() { return !this.closed && settings(this.dataRoot).clipboardEnabled === true; }
   check() { if(!this.enabled())throw statusError('电脑未开启“接收手机剪贴板”',403); }
@@ -83,7 +89,7 @@ class ClipboardTransfer {
     for(const entry of fs.readdirSync(this.inbox,{withFileTypes:true}))if(entry.isDirectory()&&!entry.isSymbolicLink()&&/^[a-f0-9]{32}$/.test(entry.name))for(const file of fs.readdirSync(path.join(this.inbox,entry.name),{withFileTypes:true}))if(file.isFile())bytes+=fs.statSync(path.join(this.inbox,entry.name,file.name)).size;
     return bytes;
   }
-  record(item) {this.receipts.unshift({...item,at:new Date(this.now()).toISOString()});this.receipts.length=Math.min(this.receipts.length,50);fs.writeFileSync(path.join(this.dataRoot,'clipboard-receipts.json.tmp'),JSON.stringify(this.receipts));fs.renameSync(path.join(this.dataRoot,'clipboard-receipts.json.tmp'),path.join(this.dataRoot,'clipboard-receipts.json'));}
+  record(item) {this.receipts.unshift({...item,at:new Date(this.now()).toISOString()});this.receipts.length=Math.min(this.receipts.length,50);fs.writeFileSync(path.join(this.dataRoot,'clipboard-receipts.json.tmp'),JSON.stringify(this.receipts));fs.renameSync(path.join(this.dataRoot,'clipboard-receipts.json.tmp'),path.join(this.dataRoot,'clipboard-receipts.json'));this.cleanupText();}
   expire() {for(const [id,session] of this.sessions)if(session.expires<this.now()&&!session.uploading&&!session.committing){this.sessions.delete(id);if(!session.moved){this.reserved-=session.total;fs.rmSync(path.join(this.staging,id),{recursive:true,force:true});}}}
   async command(input) {
     this.check();this.expire();
@@ -91,7 +97,11 @@ class ClipboardTransfer {
     if(input.kind==='text') {
       if(typeof input.text!=='string'||!input.text.length||input.text.includes('\0')||Buffer.byteLength(input.text)>MAX_TEXT)throw statusError('文字为空、包含无效字符或超过 1 MiB');
       await this.bridge.call({kind:'text',text:input.text});
-      const id=crypto.randomBytes(16).toString('hex');this.record({id,kind:'text',bytes:Buffer.byteLength(input.text),files:[]});
+      const id=crypto.randomBytes(16).toString('hex');
+      let text=input.text.slice(0,TEXT_PREVIEW);if(/[\uD800-\uDBFF]$/.test(text))text=text.slice(0,-1);
+      const textTruncated=text.length<input.text.length;
+      if(textTruncated)fs.writeFileSync(path.join(this.textRoot,id+'.txt'),input.text,'utf8');
+      this.record({id,kind:'text',bytes:Buffer.byteLength(input.text),files:[],text,textTruncated});
       return {ok:true,id,copied:true,kind:'text'};
     }
     if(input.op==='begin') {
@@ -159,4 +169,4 @@ class ClipboardTransfer {
   }
   close() {this.closed=true;clearInterval(this.timer);this.bridge.close();}
 }
-module.exports={ClipboardTransfer,ClipboardBridge,settings,safeName,MAX_FILE,MAX_BATCH,MAX_TEXT};
+module.exports={ClipboardTransfer,ClipboardBridge,settings,safeName,MAX_FILE,MAX_BATCH,MAX_TEXT,TEXT_PREVIEW};

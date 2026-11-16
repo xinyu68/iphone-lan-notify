@@ -35,5 +35,6 @@ scriptable/iphone-notify.js
 ClipboardWorker.exe
 clipboard-receipts.json
 clipboard-receipts.json.tmp
+clipboard-text/
 inbox/
 .incoming/

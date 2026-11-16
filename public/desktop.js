@@ -59,6 +59,30 @@
   get('copy-clipboard-script').addEventListener('click', () => send('copy', {text:get('clipboard-script').value}));
   get('export-clipboard-script').addEventListener('click', () => send('export-clipboard-script', {text:get('clipboard-script').value}));
   let clipboardHistoryKey = '';
+  const clipboardTextState = new Map();
+  const clipboardTextViews = new Map();
+  function appendClipboardText(row, item) {
+    const body = document.createElement('p'); body.className = 'clipboard-text'; row.append(body);
+    const state = clipboardTextState.get(item.id) || {expanded:false,fullText:null,loading:false};
+    clipboardTextState.set(item.id,state);
+    const expandable = item.textTruncated || item.text.length > 160 || item.text.split('\n').length > 3;
+    const toggle = expandable ? document.createElement('button') : null;
+    const update = () => {
+      body.textContent = state.fullText === null ? item.text : state.fullText;
+      body.classList.toggle('expanded',state.expanded);
+      if (toggle) { toggle.textContent = state.loading ? '正在读取…' : state.expanded ? '收起' : '展开全文'; toggle.disabled = state.loading; toggle.setAttribute('aria-expanded',String(state.expanded)); }
+    };
+    if (toggle) {
+      toggle.className = 'clipboard-text-toggle';
+      toggle.addEventListener('click', () => {
+        if (!state.expanded && item.textTruncated && state.fullText === null) { state.loading = true; send('clipboard-text',{id:item.id}); }
+        else state.expanded = !state.expanded;
+        update();
+      });
+      row.append(toggle);
+    }
+    clipboardTextViews.set(item.id,update); update();
+  }
   get('copy').addEventListener('click', () => send('copy', { text: get('endpoint').value }));
   get('copy-scriptable').addEventListener('click', () => send('copy', { text: get('scriptable-code').value }));
   get('copy-shortcut').addEventListener('click', () => send('copy', { text: 'https://www.icloud.com/shortcuts/f1cc45ac60934a4baa820400ed63fe2b' }));
@@ -169,12 +193,17 @@
     if (key !== clipboardHistoryKey) {
       clipboardHistoryKey = key;
       const list = get('clipboard-history'); list.replaceChildren();
+      clipboardTextViews.clear();
+      const retained = new Set(receipts.map(item=>item.id));
+      for (const id of clipboardTextState.keys()) if (!retained.has(id)) clipboardTextState.delete(id);
       if (!receipts.length) { const empty=document.createElement('p');empty.className='clipboard-note';empty.textContent='等待手机发送文字、图片或文件';list.append(empty); }
       for (const item of receipts) {
         const row=document.createElement('div');row.className='clipboard-receipt';
         const title=document.createElement('strong'); title.textContent=item.kind==='text'?'文字已复制':item.kind==='image'?'图片已复制':'文件已接收，可在文件夹中粘贴';
-        const detail=document.createElement('span');detail.textContent=(item.files||[]).join('、') || '文字内容不留存';
-        const time=document.createElement('time');time.textContent=new Date(item.at).toLocaleString();row.append(title,detail,time);list.append(row);
+        row.append(title);
+        if (item.kind === 'text' && typeof item.text === 'string') appendClipboardText(row,item);
+        else { const detail=document.createElement('span');detail.textContent=item.kind==='text'?'旧记录未保存文字内容':(item.files||[]).join('、');row.append(detail); }
+        const time=document.createElement('time');time.textContent=new Date(item.at).toLocaleString();row.append(time);list.append(row);
         if (item.kind !== 'text') { const open=document.createElement('button');open.className='secondary';open.textContent='打开文件位置';open.addEventListener('click',()=>send('open-clipboard-item',{id:item.id}));row.append(open); }
       }
     }
@@ -196,6 +225,15 @@
     const message = event.data;
     if (message.type === 'state') render(message);
     if (message.type === 'feedback') feedback(message.text);
+    if (message.type === 'clipboard-text') {
+      const state = clipboardTextState.get(message.id);
+      if (state) {
+        state.loading = false;
+        if (typeof message.text === 'string') { state.fullText = message.text; state.expanded = true; }
+        else feedback(message.error || '文字内容暂时无法读取，请重试');
+        const update = clipboardTextViews.get(message.id); if (update) update();
+      }
+    }
     if (message.type === 'navigate') selectTab(message.tab);
     if (message.type === 'focus-notification') {
       focusNotification(message.id);
