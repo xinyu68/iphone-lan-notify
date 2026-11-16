@@ -14,5 +14,5 @@ if ($existing) {
     $existing | Remove-NetFirewallRule
 }
 if (!$Remove) {
-    New-NetFirewallRule -Name $name -DisplayName ('PhoneNotify LAN receiver (' + $Port + ')') -Group 'PhoneNotify' -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -Program $exe -Profile Private -RemoteAddress LocalSubnet | Out-Null
+    New-NetFirewallRule -Name $name -DisplayName ('PhoneNotify LAN receiver (' + $Port + ')') -Group 'PhoneNotify' -Direction Inbound -Action Allow -Protocol TCP -LocalPort $Port -Program $exe -Profile Private,Public -RemoteAddress LocalSubnet | Out-Null
 }

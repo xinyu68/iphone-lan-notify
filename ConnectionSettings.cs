@@ -48,9 +48,9 @@ namespace Xinyu.PhoneNotifications
                 string arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + Path.Combine(root, "configure-firewall.ps1") + "\" -NodePath \"" + nodePath + "\" -Port " + new Uri(receiverOrigin).Port;
                 using (var process = Process.Start(new ProcessStartInfo(shell, arguments) { UseShellExecute = true, Verb = "runas", WindowStyle = ProcessWindowStyle.Hidden })) {
                     await Task.Run(delegate { process.WaitForExit(); });
-                    if (process.ExitCode != 0) throw new InvalidOperationException("防火墙配置失败，请检查管理员授权和当前网络类型");
+                    if (process.ExitCode != 0) throw new InvalidOperationException("防火墙配置失败，请检查管理员授权或系统防火墙策略");
                 }
-                Feedback("已允许当前接收程序在专用局域网访问。请确认 Windows 网络类型为“专用”");
+                Feedback("已允许当前接收程序在公用和专用网络中接受本地子网访问，无需修改网络类型");
             } finally { busy = false; PublishDesktopState(); }
         }
     }
