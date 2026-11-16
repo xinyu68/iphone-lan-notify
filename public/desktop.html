@@ -28,8 +28,8 @@
   </section>
   <section id="setup" class="tab-panel" hidden>
     <div class="setup-navigation" role="tablist" aria-label="手机配置项目">
-      <button class="setup-choice active" id="setup-notification-tab" data-setup-tab="notification" role="tab" aria-selected="true" aria-controls="notification-setup-card"><strong>通知同步</strong><span>配置通知自动转发</span></button>
-      <button class="setup-choice" id="setup-clipboard-tab" data-setup-tab="clipboard" role="tab" aria-selected="false" aria-controls="clipboard-setup-card" tabindex="-1"><strong>剪贴板与文件</strong><span>配置复制内容和分享文件发送</span></button>
+      <button class="setup-choice active" id="setup-notification-tab" data-setup-tab="notification" role="tab" aria-selected="true" aria-controls="notification-setup-card">通知同步配置</button>
+      <button class="setup-choice" id="setup-clipboard-tab" data-setup-tab="clipboard" role="tab" aria-selected="false" aria-controls="clipboard-setup-card" tabindex="-1">剪贴板与文件配置</button>
     </div>
     <details class="card connection-card"><summary><strong>电脑连接设置</strong><span id="connection-summary">两项功能共用 · 点击展开</span></summary>
       <div class="network-settings"><h3>电脑局域网地址</h3><p>选择与 iPhone 相通的网卡地址。VPN、虚拟网卡和访客 Wi-Fi 可能无法互通。</p><div class="network-fields"><label>网络地址<select id="network-host" aria-label="电脑局域网地址"></select></label><label>端口<input id="network-port" type="number" min="1024" max="65535" value="18766"></label></div><div class="button-row"><button id="save-network" class="secondary">保存连接设置</button><button id="refresh-network" class="secondary">刷新网络</button><button id="configure-firewall" class="secondary">允许专用局域网访问</button></div><p>防火墙配置需要 Windows 管理员授权，仅开放当前程序和端口，范围为专用网络的本地子网。请先保存连接设置。</p><p id="data-location" class="import-note"></p></div>
