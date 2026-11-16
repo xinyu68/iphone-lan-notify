@@ -15,6 +15,7 @@
 - `heic-render.cjs` / `inbox-storage.cjs`：HEIC/HEIF 本机解码缓存及包含缓存的收件箱容量统计。原文件不改动，完整尺寸 PNG 用于预览和历史重新复制；最多 16384 像素边长、4000 万像素、50 MiB 输入。转换在独立 Node.js 进程中串行执行，60 秒超时，仅终止自行启动的子进程。
 - `public/clipboard-sender.js`：为当前电脑生成 Scriptable 发送代码，读取剪贴板或分享表单输入；它不会在后台持续监听剪贴板。
 - `public`：仅供桌面 WebView2 使用的本地 UI，不对手机提供设置网页。旧 `/setup/<token>` 返回 410。
+- `public/app.js`：生成「通知静默转发」Scriptable 代码。直接在 App 内运行且没有快捷指令参数时提供手动测试，通过带令牌的 `POST /test/<token>` 检查发送链路；使用 10 秒超时和可见结果。带通知参数的转发、Siri/扩展空输入保留 2 秒超时和静默行为。手动结果只确认请求被接收，桌面显示仍需查看通知记录。API 依据：[运行环境](https://docs.scriptable.app/config/)、[Alert](https://docs.scriptable.app/alert/)、[Request](https://docs.scriptable.app/request/)。`verify-scriptable.cjs` 覆盖两条路径及取消、错误反馈；`--live` 用模拟 Scriptable API 访问真实接收端，不代表 iPhone 弹窗已实测。
 - 收件箱图片预览通过本地 WebView2 消息按需读取；校验记录 ID、文件索引、收件箱路径、文件大小和图片格式，拒绝重解析点。原图重新编码为 PNG，缩略图最多 224×168，放大图最多 1280×960；最多两项解码并行，预览不会把本机收件箱映射为网站目录。`verify-clipboard-preview.cjs` 编译实际 C# 读取代码，验证缩放和无效文件、越界路径等情况，不触碰系统剪贴板。
 
 ## 通知接口

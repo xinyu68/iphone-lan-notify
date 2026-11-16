@@ -1,6 +1,6 @@
 {
   "name": "iphone-lan-notify",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "Local iPhone notification receiver for Windows",
   "scripts": {

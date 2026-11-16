@@ -91,6 +91,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1
 
 在电脑应用 **手机配置** 页点击 **通知同步配置**，复制或导出发送代码，传到 iPhone，在 Scriptable 中保存为 **通知静默转发**。
 
+从 v1.2.1 起，可在 **Scriptable 内直接运行「通知静默转发」→ 发送测试通知**，无需另建测试快捷指令。手机会显示请求是否被电脑接收，失败时显示 HTTP 状态或连接错误提示；接收成功后仍需查看电脑通知记录确认显示结果。测试可检查 Scriptable 本身的本地网络访问和配对地址，Safari 能打开 `/health` 不代表此发送测试一定成功。正常快捷指令通知转发失败仍静默跳过。已保存的旧脚本不会自动更新，需重新复制后替换。
+
 ### 2. 导入或建立通知自动化
 
 [打开“同步到电脑”快捷指令分享](https://www.icloud.com/shortcuts/f1cc45ac60934a4baa820400ed63fe2b)
