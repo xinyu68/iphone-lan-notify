@@ -1,4 +1,5 @@
 param([Parameter(Mandatory=$true)][string]$AppRoot,[Parameter(Mandatory=$true)][string]$DataRoot,[Parameter(Mandatory=$true)][string]$Stage,[Parameter(Mandatory=$true)][int]$ParentId,[switch]$ValidateOnly)
+$env:PSModulePath=[IO.Path]::Combine($PSHOME,'Modules')+[IO.Path]::PathSeparator+[IO.Path]::Combine([Environment]::GetFolderPath('ProgramFiles'),'WindowsPowerShell','Modules')
 $ErrorActionPreference='Stop'
 $app=[IO.Path]::GetFullPath($AppRoot).TrimEnd('\')
 $data=[IO.Path]::GetFullPath($DataRoot).TrimEnd('\')
