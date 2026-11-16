@@ -34,6 +34,7 @@
   get('copy').addEventListener('click', () => send('copy', { text: get('endpoint').value }));
   get('copy-scriptable').addEventListener('click', () => send('copy', { text: get('scriptable-code').value }));
   get('copy-shortcut').addEventListener('click', () => send('copy', { text: 'https://www.icloud.com/shortcuts/f1cc45ac60934a4baa820400ed63fe2b' }));
+  get('copy-clipboard-shortcut').addEventListener('click', () => send('copy', { text: 'https://www.icloud.com/shortcuts/154c82177e5a45c295d1c8419607f8ed' }));
   get('export-script').addEventListener('click', () => send('export-script', { text: get('scriptable-code').value }));
   get('test').addEventListener('click', () => { get('test').disabled = true; send('test'); });
   get('save-network').addEventListener('click', () => {
