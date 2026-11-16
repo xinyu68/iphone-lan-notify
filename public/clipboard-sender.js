@@ -17,9 +17,16 @@ async function sendClipboardToComputer(endpoint) {
       files.push({ name, size, data });
     };
     const addFile = url => {
-      const filename = String(url).startsWith('file://') ? decodeURIComponent(String(url).replace(/^file:\/\//, '')) : String(url);
-      addData(filename.split('/').pop() || 'file', Data.fromFile(filename));
+      const value = String(url);
+      const match = /^file:\/\/(?:localhost)?(\/[^?#]*)$/i.exec(value);
+      if (/^file:/i.test(value) && !match) throw Error('无法识别快捷指令传来的本机文件地址');
+      const filename = match ? decodeURIComponent(match[1]) : value;
+      let data;
+      try { data = Data.fromFile(filename); } catch (_) { throw Error('无法读取快捷指令的临时文件，请重新复制内容后再试'); }
+      if (!data) throw Error('无法读取快捷指令的临时文件，请重新复制内容后再试');
+      addData(filename.split('/').pop() || 'file', data);
     };
+    const isFileURL = value => typeof value === 'string' && /^file:\/\//i.test(value);
     if (input && typeof input === 'object' && input.kind === 'text') text = input.text;
     else if (input && typeof input === 'object' && ['image','files'].includes(input.kind) && Array.isArray(input.files)) {
       kind = input.kind;
@@ -29,14 +36,21 @@ async function sendClipboardToComputer(endpoint) {
     } else if ((args.images || []).length) {
       kind = args.images.length === 1 ? 'image' : 'files';
       for (let i = 0; i < args.images.length; i++) addData('image-' + (i + 1) + '.png', Data.fromPNG(args.images[i]));
-    } else if (typeof input === 'string' && input.length) text = input;
-    else if ((args.plainTexts || []).length || (args.urls || []).length) text = [...(args.plainTexts || []), ...(args.urls || [])].join('\n');
+    } else if (isFileURL(input)) addFile(input);
+    else if (Array.isArray(input) && input.length && input.every(isFileURL)) { for (const url of input) addFile(url); }
+    else if (typeof input === 'string' && input.length) text = input;
+    else if ((args.plainTexts || []).length || (args.urls || []).length) {
+      const shared = [...(args.plainTexts || []), ...(args.urls || [])];
+      if (shared.every(isFileURL)) { for (const url of shared) addFile(url); }
+      else text = shared.join('\n');
+    }
     else {
       let image = null;
       try { image = Pasteboard.pasteImage(); } catch (_) {}
       if (image) { kind = 'image'; addData('image.png', Data.fromPNG(image)); }
       else text = Pasteboard.pasteString();
     }
+    if (kind === 'files' && files.length === 1 && /\.(png|jpe?g)$/i.test(files[0].name)) kind = 'image';
     const command = async payload => {
       const request = new Request(endpoint);
       request.method = 'POST'; request.headers = { 'Content-Type':'application/json' };
