@@ -147,7 +147,7 @@ namespace Xinyu.PhoneNotifications
             var exitMenu = new ToolStripMenuItem("退出手机通知");
             exitMenu.Click += async delegate { await ExitProgram(); };
             menu.Items.AddRange(new ToolStripItem[] { openMenu, new ToolStripSeparator(), toggleMenu, settingsMenu, new ToolStripSeparator(), exitMenu });
-            tray = new NotifyIcon { Icon = enabled ? onIcon : offIcon, Text = "手机通知", Visible = true, ContextMenuStrip = menu };
+            tray = new NotifyIcon { Icon = enabled ? onIcon : offIcon, Text = "手机通知 v" + AppVersion.Current, Visible = true, ContextMenuStrip = menu };
             tray.DoubleClick += delegate { ShowWindow(); };
 
             receiver = FindReceiver();
@@ -258,10 +258,10 @@ namespace Xinyu.PhoneNotifications
             receivingReady = enabled && ready;
             serviceReady = ready;
             tray.Icon = running ? onIcon : offIcon;
-            tray.Text = running ? (ready ? "手机通知：接收已开启" : "手机通知：正在启动") : "手机通知：接收已关闭";
+            tray.Text = "手机通知 v" + AppVersion.Current + (running ? (ready ? "：接收已开启" : "：正在启动") : "：接收已关闭");
             settingsMenu.Enabled = true;
             PublishDesktopState();
-            string snapshot = json.Serialize(new { pid = Process.GetCurrentProcess().Id, receiving = enabled && running, preferred = enabled, ready = ready, clipboardEnabled = clipboardEnabled, visible = form.Visible, busy = busy, startupEnabled = StartupEnabled(), webReady = webReady, webError = webError, selectedNotificationId = selectedNotificationId, activationSource = lastActivationSource });
+            string snapshot = json.Serialize(new { pid = Process.GetCurrentProcess().Id, version = AppVersion.Current, receiving = enabled && running, preferred = enabled, ready = ready, clipboardEnabled = clipboardEnabled, visible = form.Visible, busy = busy, startupEnabled = StartupEnabled(), webReady = webReady, webError = webError, selectedNotificationId = selectedNotificationId, activationSource = lastActivationSource });
             if (snapshot != lastState)
             {
                 string destination = Path.Combine(dataRoot, "controller-state.json");

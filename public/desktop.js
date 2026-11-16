@@ -2,6 +2,29 @@
   const host = window.chrome && window.chrome.webview;
   const get = id => document.getElementById(id);
   const send = (action, data = {}) => host && host.postMessage({ action, ...data });
+  let updatePhase = 'idle';
+  const updateDialog = get('update-dialog');
+  const openUpdate = () => { if (!updateDialog.open) updateDialog.showModal(); if (!['checking','downloading','installing'].includes(updatePhase)) send('check-update'); };
+  get('check-update').addEventListener('click', openUpdate);
+  get('retry-update').addEventListener('click', () => send('check-update'));
+  get('install-update').addEventListener('click', () => { if(updatePhase==='available')send('install-update'); });
+  get('close-update').addEventListener('click', () => updateDialog.close());
+  get('open-releases').addEventListener('click', () => send('open-releases'));
+  function renderUpdate(update) {
+    if (!update) return;
+    updatePhase=update.phase;
+    const waiting=['checking','downloading','installing'].includes(updatePhase);
+    get('app-version').textContent='v'+update.current;
+    get('check-update').disabled=false;
+    get('check-update').textContent=updatePhase==='available'?'发现新版本':waiting?'更新中…':'检查更新';
+    get('update-versions').textContent='当前版本 v'+update.current+(update.latest?' · 最新正式版 v'+update.latest:'');
+    get('update-status').textContent=updatePhase==='checking'?'正在检查 GitHub Releases…':updatePhase==='available'?'有新版本可用':updatePhase==='current'?'已是最新版本':updatePhase==='downloading'?'正在下载安装包 '+(update.percent||0)+'%':updatePhase==='installing'?'正在校验和准备安装，即将自动重启…':updatePhase==='error'?update.error:'点击检查更新，获取最新正式版';
+    if(updatePhase==='updated')get('update-status').textContent='已完成更新，当前版本 v'+update.current;
+    get('update-progress').hidden=updatePhase!=='downloading';get('update-progress').value=update.percent||0;
+    get('update-notes').hidden=!update.notes;get('update-notes').textContent=update.notes||'';
+    get('install-update').hidden=updatePhase!=='available';get('install-update').disabled=waiting;
+    get('retry-update').disabled=waiting;
+  }
   let config = null;
   let historyKey = '';
   let feedbackTimer;
@@ -225,6 +248,7 @@
     return Boolean(target);
   }
   function render(message) {
+    renderUpdate(message.update);
     const state = message.controller;
     const receiver = message.receiver || {};
     if (message.config) {

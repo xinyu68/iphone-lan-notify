@@ -45,8 +45,9 @@ namespace Xinyu.PhoneNotifications
 
         internal static string FindNode(string root, string previous)
         {
-            var candidates = new List<string> { Path.Combine(root, "runtime", "node.exe") };
+            var candidates = new List<string>();
             if (!String.IsNullOrEmpty(previous) && Path.IsPathRooted(previous)) candidates.Add(previous);
+            candidates.Add(Path.Combine(root, "runtime", "node.exe"));
             foreach (string directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)) {
                 try { if (!String.IsNullOrWhiteSpace(directory)) candidates.Add(Path.Combine(directory.Trim('"'), "node.exe")); } catch (ArgumentException) { }
             }

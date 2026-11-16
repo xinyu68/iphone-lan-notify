@@ -12,7 +12,7 @@
 </head>
 <body>
 <main>
-  <header class="app-header"><img src="app-icon.png?v=20261115-no-bell" alt="" width="48" height="48"><div><h1>手机通知</h1><p>iPhone 的新消息，在电脑上看见</p></div><span id="status" class="status">正在连接</span></header>
+  <header class="app-header"><img src="app-icon.png?v=20261115-no-bell" alt="" width="48" height="48"><div><h1>手机通知 <span id="app-version" class="app-version">读取版本中</span></h1><p>iPhone 的新消息，在电脑上看见</p></div><button id="check-update" class="secondary" disabled>检查更新</button><span id="status" class="status">正在连接</span></header>
   <section class="controls card" aria-label="应用设置">
     <div class="control"><div><h2>接收手机通知</h2><p id="receive-description">正在读取接收状态</p></div><button class="switch" id="receive-toggle" role="switch" aria-checked="false" aria-label="接收手机通知" disabled><span></span></button></div>
     <div class="control"><div><h2>接收手机剪贴板</h2><p id="clipboard-description">文字、图片和文件，收到后可在电脑粘贴</p></div><button class="switch" id="clipboard-toggle" role="switch" aria-checked="false" aria-label="接收手机剪贴板" disabled><span></span></button></div>
@@ -51,6 +51,7 @@
   <footer><span>所有设置在本机完成</span><span>关闭窗口后继续在托盘运行</span></footer>
 </main>
 <div id="feedback" class="feedback" role="status" hidden></div>
+<dialog id="update-dialog" class="update-dialog" aria-labelledby="update-title"><div class="section-heading"><h2 id="update-title">软件更新</h2><button id="close-update" class="secondary">关闭</button></div><p id="update-versions"></p><p id="update-status" role="status">点击检查更新，获取 GitHub Releases 最新正式版</p><progress id="update-progress" max="100" value="0" hidden></progress><pre id="update-notes" hidden></pre><p class="update-hint">下载完成并校验通过后，程序会短暂退出并自动重启。配对、记录和接收设置保留；手机中已保存的 Scriptable 脚本需按版本说明自行替换。</p><div class="button-row"><button id="install-update" class="secondary" hidden>下载并更新</button><button id="retry-update" class="secondary">重新检查</button><button id="open-releases" class="secondary">打开 Releases</button></div></dialog>
 <dialog id="clipboard-image-viewer" class="clipboard-image-viewer" aria-labelledby="clipboard-image-title"><div class="image-viewer-heading"><h2 id="clipboard-image-title">图片预览</h2><div class="button-row"><button id="copy-clipboard-image" class="secondary">复制图片</button><button id="close-clipboard-image" class="secondary">关闭</button></div></div><p id="clipboard-image-status" role="status"></p><img id="clipboard-image-full" alt="接收的图片" hidden></dialog>
 </body>
 </html>

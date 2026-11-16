@@ -1,4 +1,4 @@
-﻿param([switch]$SkipBuild)
+param([switch]$SkipBuild)
 $ErrorActionPreference = 'Stop'
 $version = (Get-Content -LiteralPath (Join-Path $PSScriptRoot 'package.json') -Raw -Encoding UTF8 | ConvertFrom-Json).version
 if (!$SkipBuild) { & (Join-Path $PSScriptRoot 'build-app.ps1') }
@@ -9,7 +9,7 @@ $name = 'PhoneNotify-' + $version + '-win-x64'
 $destination = Join-Path $PSScriptRoot ('dist\' + $name)
 if (Test-Path -LiteralPath $destination) { throw 'Build output exists. Move the previous dist folder before creating another bundle' }
 New-Item -ItemType Directory -Path $destination -Force | Out-Null
-$files = @('PhoneNotify.exe','NotificationPopup.exe','ClipboardWorker.exe','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','receiver.cjs','runtime-paths.cjs','clipboard-transfer.cjs','inbox-storage.cjs','heic-render.cjs','package.json','package-lock.json','notification-format.cjs','notification-history.cjs','notification-workers.cjs','app-icon-cache.cjs','app-icon-catalog.cjs','app-icon-catalog.json','NativeNotifications.cs','toast-worker.ps1','stop-receiver.ps1','configure-firewall.ps1','check-environment.ps1','install.ps1','uninstall.ps1','install-controls.ps1','install-startup.ps1','start.cmd','stop.cmd','README.md','LICENSE','THIRD_PARTY_NOTICES.md','node-runtime.json')
+$files = @('PhoneNotify.exe','NotificationPopup.exe','ClipboardWorker.exe','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll','WebView2Loader.dll','receiver.cjs','updater.cjs','apply-update.ps1','runtime-paths.cjs','clipboard-transfer.cjs','inbox-storage.cjs','heic-render.cjs','package.json','package-lock.json','notification-format.cjs','notification-history.cjs','notification-workers.cjs','app-icon-cache.cjs','app-icon-catalog.cjs','app-icon-catalog.json','NativeNotifications.cs','toast-worker.ps1','stop-receiver.ps1','configure-firewall.ps1','check-environment.ps1','install.ps1','uninstall.ps1','install-controls.ps1','install-startup.ps1','start.cmd','stop.cmd','README.md','LICENSE','THIRD_PARTY_NOTICES.md','node-runtime.json')
 foreach ($file in $files) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $file) -Destination (Join-Path $destination $file) }
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'codec-sources.json') -Destination $destination
 foreach ($directory in @('assets','public','runtime','docs','licenses')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $directory) -Destination $destination -Recurse }

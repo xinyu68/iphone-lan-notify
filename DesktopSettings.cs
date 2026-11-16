@@ -106,6 +106,9 @@ namespace Xinyu.PhoneNotifications
                 var message = json.Deserialize<Dictionary<string, object>>(e.WebMessageAsJson);
                 string action = Convert.ToString(message["action"]);
                 if (action == "init") { await PollDesktopStateAsync(); PublishDesktopState(); }
+                else if (action == "check-update") { await CheckUpdateAsync(); }
+                else if (action == "install-update") { await InstallUpdateAsync(); }
+                else if (action == "open-releases") { Process.Start(new ProcessStartInfo("https://github.com/xinyu68/iphone-lan-notify/releases/latest") {UseShellExecute=true}); }
                 else if (action == "network-save") { if (!busy) await SaveNetworkAsync(Convert.ToString(message["host"]), Convert.ToInt32(message["port"])); }
                 else if (action == "network-refresh") { PublishDesktopState(); }
                 else if (action == "firewall") { if (!busy) await ConfigureFirewallAsync(); }
@@ -181,6 +184,7 @@ namespace Xinyu.PhoneNotifications
                 type = "state",
                 controller = new { receiving = receivingRunning, ready = receivingReady, clipboardEnabled = clipboardEnabled, clipboardReady = clipboardEnabled && serviceReady, startupEnabled = StartupEnabled(), busy = busy },
                 receiver = desktopReceiver,
+                update = UpdateState(),
                 focusNotificationId = selectedNotificationId,
                 config = new { notifyUrl = receiverOrigin + "/notify/" + accessToken, clipboardUrl = receiverOrigin + "/clipboard/" + accessToken, host = new Uri(receiverOrigin).Host, port = new Uri(receiverOrigin).Port, networks = AppEnvironment.Networks(), dataDirectory = dataRoot }
             });
@@ -212,6 +216,8 @@ namespace Xinyu.PhoneNotifications
                 else if (operation == "receiving") await webView.ExecuteScriptAsync("document.getElementById('receive-toggle').click()");
                 else if (operation == "test") await webView.ExecuteScriptAsync("document.getElementById('test').click()");
                 else if (operation == "setup") await webView.ExecuteScriptAsync("document.querySelector('[data-tab=setup]').click()");
+                else if (operation == "update-check") await CheckUpdateAsync();
+                else if (operation == "update-install") await webView.ExecuteScriptAsync("document.getElementById('install-update').click()");
                 else if (operation == "notifications") await webView.ExecuteScriptAsync("document.querySelector('[data-tab=notifications]').click()");
                 else if (operation == "clipboard") await webView.ExecuteScriptAsync("document.querySelector('[data-tab=clipboard]').click()");
                 await Task.Delay(700);
@@ -222,6 +228,8 @@ namespace Xinyu.PhoneNotifications
                 string result = await webView.ExecuteScriptAsync("JSON.stringify({title:document.title,switches:document.querySelectorAll('[role=switch]').length,receive:document.getElementById('receive-toggle').getAttribute('aria-checked'),startup:document.getElementById('startup-toggle').getAttribute('aria-checked'),configured:!!window.desktopState&&window.desktopState.configured,scriptLength:document.getElementById('scriptable-code').value.length,setupVisible:!document.getElementById('setup').hidden,records:document.querySelectorAll('.notification').length,importShortcutPresent:!!document.getElementById('copy-shortcut'),exportScriptPresent:!!document.getElementById('export-script'),brandIconLoaded:document.querySelector('.app-header img').naturalWidth>0,importQrLoaded:document.querySelector('.import-guide img').naturalWidth>0,horizontalOverflow:document.documentElement.scrollWidth>innerWidth,status:document.getElementById('status').textContent})");
                 using (var output = File.Create(Path.Combine(directory, "desktop.png"))) await webView.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, output);
                 var inspection = json.Deserialize<Dictionary<string, object>>(json.Deserialize<string>(result));
+                inspection["version"] = json.Deserialize<string>(await webView.ExecuteScriptAsync("document.getElementById('app-version').textContent"));
+                inspection["update"] = UpdateState();
                 string selection = await webView.ExecuteScriptAsync("JSON.stringify({selectedId:document.querySelector('.notification.selected')?.dataset.notificationId||null,selectedVisible:(()=>{const e=document.querySelector('.notification.selected');if(!e)return false;const r=e.getBoundingClientRect();return r.bottom>0&&r.top<innerHeight})(),notificationsVisible:!document.getElementById('notifications').hidden,focusedId:document.activeElement?.dataset.notificationId||null})");
                 inspection["selection"] = json.Deserialize<Dictionary<string, object>>(json.Deserialize<string>(selection));
                 File.WriteAllText(Path.Combine(directory, "desktop-check.json"), json.Serialize(inspection), new UTF8Encoding(false));

@@ -60,6 +60,10 @@ node verify-clear-on-card-open.cjs
 
 ## 发行与验证范围
 
+应用版本从 `package.json` 在构建时生成到 `.packages/AppVersion.g.cs`，嵌入程序集、文件属性、托盘与 WebView2 状态，运行时不依赖可编辑的 package.json 显示版本。`UpdateSettings.cs` 管理检查、进度与退出交接；`updater.cjs` 仅接受本仓库正式版和固定附件 URL，限制大小并校验 SHA-256；`apply-update.ps1` 在应用退出前校验归档与清单，拒绝路径穿越、链接及用户数据条目，应用退出后备份并替换程序，再验证新进程状态。失败时恢复已替换文件，保留备份和失败结果。正常更新清理解压文件与 ZIP，保留当前及前一成功更新的程序备份；失败缓存位于数据目录 `.updates`，排障后可自行清理。已有有效 Node.js 路径优先保留，维护防火墙身份。
+
+`verify-updater.cjs` 覆盖版本、来源、附件缺失、下载摘要与损坏数据；`verify-apply-update.cjs` 在隔离 Windows 目录使用短暂运行的合成进程，验证真实的等待退出、安装、重启、锁文件回滚和配置保留，不操作用户应用或系统剪贴板。更新检查只由用户触发，不在后台定时请求 GitHub。
+
 正式安装包统一发布到 [Releases](https://github.com/xinyu68/iphone-lan-notify/releases)，README 下载入口固定指向 `releases/latest`。日常推送 main 或 PR 只做测试和构建，Actions 产物用于开发验证。
 
 发新版本时修改 `package.json` 与 `package-lock.json` 的版本，新增 `docs/releases/<版本>.md` 更新说明，提交后用本机 Git 创建并推送 `v<版本>` 标签。标签必须与 package.json 完全一致；已发布的版本和标签不覆盖、不移动。

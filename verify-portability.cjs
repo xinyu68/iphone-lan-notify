@@ -47,7 +47,12 @@ try {
     execFileSync(executable, [app], { env, windowsHide:true });
     assert.equal(JSON.parse(fs.readFileSync(path.join(data, 'config.json'), 'utf8')).token, saved.token);
     assert.equal(JSON.parse(fs.readFileSync(path.join(data, 'preferences.json'), 'utf8')).receiveEnabled, false);
+    const existingNode=path.join(fixture,'configured-node.exe');fs.writeFileSync(existingNode,'configured runtime fixture');
+    const previous=JSON.parse(fs.readFileSync(path.join(data,'config.json'),'utf8'));previous.nodePath=existingNode;fs.writeFileSync(path.join(data,'config.json'),JSON.stringify(previous));
+    execFileSync(executable,[app],{env,windowsHide:true});
+    assert.equal(fs.statSync(JSON.parse(fs.readFileSync(path.join(data,'config.json'),'utf8')).nodePath,{bigint:true}).ino,fs.statSync(existingNode,{bigint:true}).ino,'Upgrade must preserve existing Node executable/firewall identity');
     fs.renameSync(path.join(app, 'runtime'), path.join(app, 'runtime-unavailable'));
+    fs.unlinkSync(existingNode);
     assert.throws(() => execFileSync(executable, [app], { env, windowsHide:true, stdio:'pipe' }));
   }
   console.log('PASS: separate writable data, unique first-run pairing, persistent identity, legacy paths, invalid override rejected, bundled runtime preferred, Unicode/space paths, no PATH dependency and clear missing-runtime failure');
