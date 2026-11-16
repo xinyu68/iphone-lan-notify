@@ -61,6 +61,48 @@
   let clipboardHistoryKey = '';
   const clipboardTextState = new Map();
   const clipboardTextViews = new Map();
+  const clipboardImageState = new Map();
+  const clipboardImageViews = new Map();
+  let clipboardImageSelection = null;
+  const imageViewer = get('clipboard-image-viewer');
+  const imageObserver = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => {
+    for (const entry of entries) if (entry.isIntersecting) { requestClipboardThumbnail(entry.target.dataset.imageKey); imageObserver.unobserve(entry.target); }
+  },{rootMargin:'160px'}) : null;
+  function requestClipboardThumbnail(key) {
+    const state = clipboardImageState.get(key);
+    if (state && !state.data && !state.pending && !state.error) { state.pending = true; send('clipboard-image',{id:state.id,index:state.index,large:false}); }
+  }
+  function showClipboardImage(item, index) {
+    clipboardImageSelection = item.id + ':' + index;
+    get('clipboard-image-title').textContent = item.files[index];
+    get('clipboard-image-status').textContent = '正在读取图片…';
+    get('clipboard-image-full').hidden = true;
+    get('clipboard-image-full').removeAttribute('src');
+    if (!imageViewer.open) imageViewer.showModal();
+    send('clipboard-image',{id:item.id,index,large:true});
+  }
+  get('close-clipboard-image').addEventListener('click',()=>imageViewer.close());
+  imageViewer.addEventListener('click',event=>{if(event.target===imageViewer)imageViewer.close();});
+  imageViewer.addEventListener('close',()=>{clipboardImageSelection=null;get('clipboard-image-full').removeAttribute('src');});
+  function appendClipboardImages(row,item) {
+    const images = (item.files || []).map((name,index)=>({name,index})).filter(file=>/\.(png|jpe?g)$/i.test(file.name)).slice(0,4);
+    if (!images.length) return;
+    const list = document.createElement('div'); list.className = 'clipboard-image-list'; row.append(list);
+    for (const file of images) {
+      const key = item.id + ':' + file.index;
+      const state = clipboardImageState.get(key) || {id:item.id,index:file.index,data:null,pending:false,error:false};
+      clipboardImageState.set(key,state);
+      const button = document.createElement('button'); button.className = 'clipboard-image-button'; button.dataset.imageKey = key; button.setAttribute('aria-label','放大查看：'+file.name); button.title = '点击放大';
+      const update = () => {
+        button.replaceChildren(); button.disabled = state.error;
+        if (state.data) { const image = document.createElement('img'); image.src = state.data; image.alt = file.name; button.append(image); }
+        else { const label = document.createElement('span'); label.textContent = state.error ? '图片无法预览' : '读取预览…'; button.append(label); }
+      };
+      button.addEventListener('click',()=>showClipboardImage(item,file.index));
+      clipboardImageViews.set(key,update); update(); list.append(button);
+      if (!state.data && !state.error) { if (imageObserver) imageObserver.observe(button); else requestClipboardThumbnail(key); }
+    }
+  }
   function appendClipboardText(row, item) {
     const body = document.createElement('p'); body.className = 'clipboard-text'; row.append(body);
     const state = clipboardTextState.get(item.id) || {expanded:false,fullText:null,loading:false};
@@ -194,8 +236,10 @@
       clipboardHistoryKey = key;
       const list = get('clipboard-history'); list.replaceChildren();
       clipboardTextViews.clear();
+      clipboardImageViews.clear(); if (imageObserver) imageObserver.disconnect();
       const retained = new Set(receipts.map(item=>item.id));
       for (const id of clipboardTextState.keys()) if (!retained.has(id)) clipboardTextState.delete(id);
+      for (const [key,state] of clipboardImageState) if (!retained.has(state.id)) clipboardImageState.delete(key);
       if (!receipts.length) { const empty=document.createElement('p');empty.className='clipboard-note';empty.textContent='等待手机发送文字、图片或文件';list.append(empty); }
       for (const item of receipts) {
         const row=document.createElement('div');row.className='clipboard-receipt';
@@ -203,6 +247,7 @@
         row.append(title);
         if (item.kind === 'text' && typeof item.text === 'string') appendClipboardText(row,item);
         else { const detail=document.createElement('span');detail.textContent=item.kind==='text'?'旧记录未保存文字内容':(item.files||[]).join('、');row.append(detail); }
+        if (item.kind !== 'text') appendClipboardImages(row,item);
         const time=document.createElement('time');time.textContent=new Date(item.at).toLocaleString();row.append(time);list.append(row);
         if (item.kind !== 'text') { const open=document.createElement('button');open.className='secondary';open.textContent='打开文件位置';open.addEventListener('click',()=>send('open-clipboard-item',{id:item.id}));row.append(open); }
       }
@@ -225,6 +270,20 @@
     const message = event.data;
     if (message.type === 'state') render(message);
     if (message.type === 'feedback') feedback(message.text);
+    if (message.type === 'clipboard-image') {
+      const key = message.id + ':' + message.index;
+      const data = typeof message.data === 'string' && message.data.startsWith('data:image/png;base64,') ? message.data : null;
+      if (message.large) {
+        if (key === clipboardImageSelection && imageViewer.open) {
+          get('clipboard-image-status').textContent = data ? '' : message.error || '图片暂时无法预览';
+          get('clipboard-image-full').hidden = !data;
+          if (data) get('clipboard-image-full').src = data;
+        }
+      } else {
+        const state = clipboardImageState.get(key);
+        if (state) { state.pending = false; state.data = data; state.error = !data; const update = clipboardImageViews.get(key); if (update) update(); }
+      }
+    }
     if (message.type === 'clipboard-text') {
       const state = clipboardTextState.get(message.id);
       if (state) {

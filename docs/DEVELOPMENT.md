@@ -12,6 +12,7 @@
 - `clipboard-transfer.cjs` / `ClipboardWorker.cs`：有界文件上传、独立接收偏好、收件箱元数据，以及专用 STA 进程写入 Windows Unicode/Bitmap/PNG/CF_HDROP 剪贴板。
 - `public/clipboard-sender.js`：为当前电脑生成 Scriptable 发送代码，读取剪贴板或分享表单输入；它不会在后台持续监听剪贴板。
 - `public`：仅供桌面 WebView2 使用的本地 UI，不对手机提供设置网页。旧 `/setup/<token>` 返回 410。
+- 收件箱图片预览通过本地 WebView2 消息按需读取；校验记录 ID、文件索引、收件箱路径、文件大小和图片格式，拒绝重解析点。原图重新编码为 PNG，缩略图最多 224×168，放大图最多 1280×960；最多两项解码并行，预览不会把本机收件箱映射为网站目录。`verify-clipboard-preview.cjs` 编译实际 C# 读取代码，验证缩放和无效文件、越界路径等情况，不触碰系统剪贴板。
 
 ## 通知接口
 
