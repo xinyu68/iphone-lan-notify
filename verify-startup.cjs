@@ -43,7 +43,7 @@ function launch(fixture, preload) {
   let receiver;
   let duplicate;
   try {
-    for (const filename of ['receiver.cjs', 'runtime-paths.cjs', 'notification-format.cjs', 'notification-history.cjs', 'notification-workers.cjs', 'app-icon-cache.cjs', 'app-icon-catalog.cjs', 'app-icon-catalog.json', 'NotificationPopup.exe', 'toast-worker.ps1']) {
+    for (const filename of ['receiver.cjs', 'runtime-paths.cjs', 'clipboard-transfer.cjs', 'notification-format.cjs', 'notification-history.cjs', 'notification-workers.cjs', 'app-icon-cache.cjs', 'app-icon-catalog.cjs', 'app-icon-catalog.json', 'NotificationPopup.exe', 'toast-worker.ps1']) {
       const candidate = filename === 'NotificationPopup.exe' && fs.existsSync(path.join(__dirname, 'NotificationPopup.next.exe')) ? 'NotificationPopup.next.exe' : filename;
       fs.copyFileSync(path.join(__dirname, candidate), path.join(fixture, filename));
     }

@@ -35,6 +35,9 @@ foreach ($receiver in @(Get-ReceiverProcesses)) {
     foreach ($child in $children) { Stop-Process -Id $child.ProcessId -ErrorAction SilentlyContinue }
     $popups = @(Get-CimInstance -ClassName Win32_Process -Filter ("ParentProcessId=" + $receiver.ProcessId + " AND Name='NotificationPopup.exe'") | Where-Object { $_.ExecutablePath -eq $popupPath })
     foreach ($popup in $popups) { Stop-Process -Id $popup.ProcessId -ErrorAction SilentlyContinue }
+    $clipboardPath = Join-Path $appRoot 'ClipboardWorker.exe'
+    $clipboards = @(Get-CimInstance -ClassName Win32_Process -Filter ("ParentProcessId=" + $receiver.ProcessId + " AND Name='ClipboardWorker.exe'") | Where-Object { $_.ExecutablePath -eq $clipboardPath })
+    foreach ($clipboard in $clipboards) { Stop-Process -Id $clipboard.ProcessId -ErrorAction SilentlyContinue }
     Stop-Process -Id $receiver.ProcessId -ErrorAction SilentlyContinue
 }
 if (@(Get-ReceiverProcesses).Count -gt 0) { throw 'Receiver did not stop' }

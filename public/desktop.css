@@ -14,3 +14,7 @@
 #network-host { min-width:260px; }
 #network-port { width:100px; }
 #data-location { overflow-wrap:anywhere; }
+.clipboard-note{color:#7b8a9b;font-size:12px;line-height:1.9}
+.clipboard-receipt{display:flex;flex-direction:column;gap:6px;border-bottom:1px solid #edf0f5;padding:14px 0;font-size:12px;overflow-wrap:anywhere}
+.clipboard-receipt span,.clipboard-receipt time{color:#7b8a9b;font-size:11px}
+.controls .control:nth-child(3){grid-column:1/-1;border-left:0;border-top:1px solid var(--border);padding:18px 0 0}

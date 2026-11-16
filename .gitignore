@@ -32,3 +32,8 @@ node_modules/
 licenses/
 scriptable/iphone-notify.js
 *.generated.js
+ClipboardWorker.exe
+clipboard-receipts.json
+clipboard-receipts.json.tmp
+inbox/
+.incoming/

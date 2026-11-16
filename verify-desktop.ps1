@@ -33,7 +33,7 @@ $taskInitial = Read-DesktopState
 if (!$taskInitial.webReady -or !$taskInitial.ready) { throw 'Open the app with receiving enabled before running this check' }
 try {
     $taskSetup = Inspect-Desktop 'setup'
-    if ($taskSetup.switches -ne 2 -or !$taskSetup.configured -or !$taskSetup.importShortcutPresent -or !$taskSetup.exportScriptPresent -or !$taskSetup.brandIconLoaded -or !$taskSetup.importQrLoaded -or $taskSetup.horizontalOverflow) { throw 'Embedded settings layout or phone configuration did not load correctly' }
+    if ($taskSetup.switches -ne 3 -or !$taskSetup.configured -or !$taskSetup.importShortcutPresent -or !$taskSetup.exportScriptPresent -or !$taskSetup.brandIconLoaded -or !$taskSetup.importQrLoaded -or $taskSetup.horizontalOverflow) { throw 'Embedded settings layout or phone configuration did not load correctly' }
     $taskStartupChanged = Inspect-Desktop 'startup'
     if ((Read-LoginStartup) -eq $taskInitial.startupEnabled -or [bool]::Parse($taskStartupChanged.startup) -eq $taskInitial.startupEnabled) { throw 'Embedded startup switch did not change the actual login entry' }
     $taskStartupRestored = Inspect-Desktop 'startup'

@@ -7,7 +7,7 @@ const crypto = require('node:crypto');
 const assert = require('node:assert/strict');
 const { spawn, execFileSync } = require('node:child_process');
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-const bundle = path.resolve(process.argv[2] || path.join(__dirname, 'dist', 'PhoneNotify-1.1.0-win-x64'));
+const bundle = path.resolve(process.argv[2] || path.join(__dirname, 'dist', `PhoneNotify-${require('./package.json').version}-win-x64`));
 (async () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(bundle, 'bundle-manifest.json'), 'utf8').replace(/^\uFEFF/, ''));
   for (const item of manifest.files) {

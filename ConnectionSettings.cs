@@ -30,12 +30,12 @@ namespace Xinyu.PhoneNotifications
                 next["host"] = address; next["port"] = port;
                 AppEnvironment.Save(filename, next);
                 receiverOrigin = "http://" + address + ":" + port;
-                if (enabled) StartReceiver();
+                if (enabled || clipboardEnabled) StartReceiver();
                 desktopReceiver = ReadSavedNotificationHistory();
                 Feedback("电脑地址已保存。请复制新的 Scriptable 脚本更新手机；端口变化后需重新配置防火墙");
             } catch {
                 AppEnvironment.Save(filename, old); receiverOrigin = oldOrigin;
-                if (enabled) StartReceiver();
+                if (enabled || clipboardEnabled) StartReceiver();
                 throw;
             } finally { busy = false; RefreshStatus(); }
         }

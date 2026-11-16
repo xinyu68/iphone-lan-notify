@@ -31,7 +31,7 @@ function processExists(pid) {
   const verification = path.join(__dirname, '.verification');
   fs.mkdirSync(verification, { recursive: true });
   const fixture = fs.mkdtempSync(path.join(verification, 'plain-text-fixture-'));
-  for (const filename of ['receiver.cjs', 'runtime-paths.cjs', 'notification-format.cjs', 'notification-history.cjs', 'notification-workers.cjs', 'app-icon-cache.cjs', 'app-icon-catalog.cjs', 'app-icon-catalog.json', 'toast-worker.ps1'])
+  for (const filename of ['receiver.cjs', 'runtime-paths.cjs', 'clipboard-transfer.cjs', 'notification-format.cjs', 'notification-history.cjs', 'notification-workers.cjs', 'app-icon-cache.cjs', 'app-icon-catalog.cjs', 'app-icon-catalog.json', 'toast-worker.ps1'])
     fs.copyFileSync(path.join(__dirname, filename), path.join(fixture, filename));
   const popupCandidate = fs.existsSync(path.join(__dirname, 'NotificationPopup.next.exe')) ? 'NotificationPopup.next.exe' : 'NotificationPopup.exe';
   fs.copyFileSync(path.join(__dirname, popupCandidate), path.join(fixture, 'NotificationPopup.exe'));

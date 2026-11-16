@@ -110,6 +110,15 @@ namespace Xinyu.PhoneNotifications
                 else if (action == "network-refresh") { PublishDesktopState(); }
                 else if (action == "firewall") { if (!busy) await ConfigureFirewallAsync(); }
                 else if (action == "receiving") { if (!busy) await ChangeReceiving(Convert.ToBoolean(message["enabled"])); }
+                else if (action == "clipboard-enabled") { if (!busy) await ChangeClipboardAsync(Convert.ToBoolean(message["enabled"])); }
+                else if (action == "open-inbox") { string directory = Path.Combine(dataRoot,"inbox"); Directory.CreateDirectory(directory); Process.Start(new ProcessStartInfo("explorer.exe", "\"" + directory + "\"") { UseShellExecute = true }); }
+                else if (action == "open-clipboard-item") {
+                    string id = Convert.ToString(message["id"]);
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(id,"\\A[a-f0-9]{32}\\z")) throw new InvalidOperationException("无效的接收记录");
+                    string directory = Path.Combine(dataRoot,"inbox",id);
+                    if (!Directory.Exists(directory)) throw new InvalidOperationException("接收文件已被删除");
+                    Process.Start(new ProcessStartInfo("explorer.exe","\""+directory+"\"") { UseShellExecute=true });
+                }
                 else if (action == "startup") { if (!busy) ChangeStartup(Convert.ToBoolean(message["enabled"])); }
                 else if (action == "copy") {
                     string text = Convert.ToString(message["text"]);
@@ -117,10 +126,10 @@ namespace Xinyu.PhoneNotifications
                     Clipboard.SetText(text);
                     Feedback("已复制到剪贴板");
                 }
-                else if (action == "export-script") {
+                else if (action == "export-script" || action == "export-clipboard-script") {
                     string text = Convert.ToString(message["text"]);
                     if (text.Length > 65536) throw new InvalidOperationException("脚本内容过长");
-                    using (var dialog = new SaveFileDialog { FileName = "通知静默转发.js", Filter = "JavaScript 脚本 (*.js)|*.js", AddExtension = true }) {
+                    using (var dialog = new SaveFileDialog { FileName = action == "export-clipboard-script" ? "发送到电脑.js" : "通知静默转发.js", Filter = "JavaScript 脚本 (*.js)|*.js", AddExtension = true }) {
                         if (dialog.ShowDialog(form) == DialogResult.OK) {
                             File.WriteAllText(dialog.FileName, text, new UTF8Encoding(false));
                             Feedback("脚本已导出，可传到 iPhone 后导入 Scriptable");
@@ -157,8 +166,8 @@ namespace Xinyu.PhoneNotifications
             if (!webReady || desktopPolling || !form.Visible) return;
             desktopPolling = true;
             try {
-                if (receivingReady && !busy) desktopReceiver = await ReceiverRequestAsync("status", "GET");
-                else desktopReceiver = ReadSavedNotificationHistory();
+                if (serviceReady && !busy) desktopReceiver = await ReceiverRequestAsync("status", "GET");
+                else { desktopReceiver = ReadSavedNotificationHistory() ?? new Dictionary<string,object>(); desktopReceiver["clipboard"] = ReadClipboardState(); }
             } catch { desktopReceiver = ReadSavedNotificationHistory(); }
             finally { desktopPolling = false; PublishDesktopState(); }
         }
@@ -167,10 +176,10 @@ namespace Xinyu.PhoneNotifications
         {
             PostDesktopMessage(new {
                 type = "state",
-                controller = new { receiving = receivingRunning, ready = receivingReady, startupEnabled = StartupEnabled(), busy = busy },
+                controller = new { receiving = receivingRunning, ready = receivingReady, clipboardEnabled = clipboardEnabled, clipboardReady = clipboardEnabled && serviceReady, startupEnabled = StartupEnabled(), busy = busy },
                 receiver = desktopReceiver,
                 focusNotificationId = selectedNotificationId,
-                config = new { notifyUrl = receiverOrigin + "/notify/" + accessToken, host = new Uri(receiverOrigin).Host, port = new Uri(receiverOrigin).Port, networks = AppEnvironment.Networks(), dataDirectory = dataRoot }
+                config = new { notifyUrl = receiverOrigin + "/notify/" + accessToken, clipboardUrl = receiverOrigin + "/clipboard/" + accessToken, host = new Uri(receiverOrigin).Host, port = new Uri(receiverOrigin).Port, networks = AppEnvironment.Networks(), dataDirectory = dataRoot }
             });
         }
 
@@ -201,6 +210,7 @@ namespace Xinyu.PhoneNotifications
                 else if (operation == "test") await webView.ExecuteScriptAsync("document.getElementById('test').click()");
                 else if (operation == "setup") await webView.ExecuteScriptAsync("document.querySelector('[data-tab=setup]').click()");
                 else if (operation == "notifications") await webView.ExecuteScriptAsync("document.querySelector('[data-tab=notifications]').click()");
+                else if (operation == "clipboard") await webView.ExecuteScriptAsync("document.querySelector('[data-tab=clipboard]').click()");
                 await Task.Delay(700);
                 while (busy && DateTime.UtcNow < deadline) await Task.Delay(100);
                 RefreshStatus();

@@ -5,6 +5,7 @@ const crypto = require('node:crypto');
 const { normaliseNotification } = require('./notification-format.cjs');
 const { NotificationWorkers } = require('./notification-workers.cjs');
 const notificationHistory = require('./notification-history.cjs');
+const { ClipboardTransfer, settings: receiverSettings, MAX_TEXT } = require('./clipboard-transfer.cjs');
 
 const root = __dirname;
 const { config, dataRoot } = require('./runtime-paths.cjs').loadConfig(root);
@@ -13,6 +14,7 @@ const notifyUrl = `${origin}/notify/${config.token}`;
 const startedAt = new Date().toISOString();
 const state = { received: 0, shown: 0, failed: 0, lastReceivedAt: null, lastClient: null, worker: 'starting', presentation: 'app-icon' };
 const history = notificationHistory.load(dataRoot).map(item => item.status === 'sending' ? { ...item, status: 'failed' } : item);
+const clipboard = new ClipboardTransfer({ root, dataRoot });
 let stopping = false;
 let worker;
 let listenRetryTimer;
@@ -64,13 +66,13 @@ function validToken(value) {
   return candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected);
 }
 
-function readBody(request) {
+function readBody(request, limit = 32768) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
     request.on('data', chunk => {
       size += chunk.length;
-      if (size > 32768) { const error = new Error('Body too large'); error.status = 413; reject(error); return; }
+      if (size > limit) { chunks.length=0; const error = new Error('Body too large'); error.status = 413; reject(error); return; }
       chunks.push(chunk);
     });
     request.on('end', () => {
@@ -90,6 +92,7 @@ function normalise(input) {
 }
 
 async function receive(input, client, isTest) {
+  if (receiverSettings(dataRoot).receiveEnabled === false) throw Object.assign(new Error('通知接收已关闭'), {status:403});
   if (stopping || !worker?.ready) throw new Error('Notification display worker is not ready');
   const notification = normalise(input);
   const id = crypto.randomUUID().replaceAll('-', '').slice(0, 16);
@@ -142,12 +145,14 @@ const server = http.createServer(async (request, response) => {
       return json(response, 410, { ok: false, error: '网页设置入口已停用，请在电脑上打开「手机通知」桌面程序' });
     if (parts[0] === 'status' && request.method === 'GET') {
       if (history.some(item => Date.parse(item.at) < Date.now() - 7 * 86400000)) saveHistory();
-      return json(response, 200, { ok: true, ...state, history, notifyUrl, startedAt });
+      return json(response, 200, { ok: true, ...state, history, clipboard:clipboard.status(), notifyUrl, startedAt });
     }
     if (parts[0] === 'test' && request.method === 'POST') {
       return json(response, 200, await receive({ title: 'iPhone 通知同步已连接', message: '这是一条测试通知。手机与电脑之间的通知通道正常。' }, request.socket.remoteAddress, true));
     }
     if (parts[0] === 'notify' && request.method === 'POST') return json(response, 200, await receive(await readBody(request), request.socket.remoteAddress, false));
+    if (parts[0] === 'clipboard' && request.method === 'POST') { clipboard.check();return json(response,200,await clipboard.command(await readBody(request,6*MAX_TEXT+65536))); }
+    if (parts[0] === 'clipboard-upload' && request.method === 'PUT') return json(response,200,await clipboard.upload(request,url.searchParams.get('id'),/^\d+$/.test(url.searchParams.get('index')||'')?Number(url.searchParams.get('index')):-1));
     if (parts[0] === 'history-check' && request.method === 'GET') return json(response, 200, await workerCall({ op: 'history' }));
     if (parts[0] === 'popup-check' && request.method === 'GET') return json(response, 200, await workerCall({ op: 'inspect' }, 'popup'));
     if (parts[0] === 'stop' && request.method === 'POST') {
@@ -161,7 +166,7 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.requestTimeout = 15000;
+server.requestTimeout = 120000;
 server.headersTimeout = 10000;
 server.keepAliveTimeout = 5000;
 server.on('error', async error => {
@@ -189,6 +194,7 @@ server.on('error', async error => {
   shutdown(1);
 });
 server.on('listening', () => {
+  clipboard.cleanupStaging();
   startWorker();
   writeRuntime();
   log('started', { host: config.host, port: config.port });
@@ -201,6 +207,7 @@ function shutdown(code = 0) {
   stopping = true;
   clearTimeout(listenRetryTimer);
   if (worker) worker.stop();
+  clipboard.close();
   server.close(() => process.exit(code));
   setTimeout(() => process.exit(code), 2000).unref();
 }

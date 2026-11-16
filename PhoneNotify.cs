@@ -97,6 +97,8 @@ namespace Xinyu.PhoneNotifications
         private readonly Icon offIcon;
         private Process receiver;
         private bool enabled;
+        private bool clipboardEnabled;
+        private bool serviceReady;
         private bool busy;
         private bool exiting;
         private bool stopInitially;
@@ -119,6 +121,8 @@ namespace Xinyu.PhoneNotifications
             receiverOrigin = "http://" + config["host"] + ":" + config["port"];
             accessToken = Convert.ToString(config["token"]);
             enabled = File.Exists(preferencesPath) && Convert.ToBoolean(ReadJson(preferencesPath)["receiveEnabled"]);
+            object clipboardPreference;
+            clipboardEnabled = File.Exists(preferencesPath) && ReadJson(preferencesPath).TryGetValue("clipboardEnabled", out clipboardPreference) && Convert.ToBoolean(clipboardPreference);
             if (AppEnvironment.FirstRun) desktopTab = "setup";
             if (initial.HasValue) { enabled = initial.Value; SavePreference(enabled); }
             onIcon = new Icon(Path.Combine(root, "assets", "app.ico"), 32, 32);
@@ -147,7 +151,7 @@ namespace Xinyu.PhoneNotifications
             tray.DoubleClick += delegate { ShowWindow(); };
 
             receiver = FindReceiver();
-            if (enabled) StartReceiver();
+            if (enabled || clipboardEnabled) StartReceiver();
             else if (receiver != null) stopInitially = true;
             timer = new System.Windows.Forms.Timer { Interval = 1000 };
             timer.Tick += async delegate {
@@ -173,7 +177,7 @@ namespace Xinyu.PhoneNotifications
         private void SavePreference(bool value)
         {
             string temporary = preferencesPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
-            File.WriteAllText(temporary, json.Serialize(new { receiveEnabled = value }), new UTF8Encoding(false));
+            File.WriteAllText(temporary, json.Serialize(new { receiveEnabled = value, clipboardEnabled = clipboardEnabled }), new UTF8Encoding(false));
             if (File.Exists(preferencesPath)) File.Replace(temporary, preferencesPath, null);
             else File.Move(temporary, preferencesPath);
         }
@@ -227,10 +231,10 @@ namespace Xinyu.PhoneNotifications
             PublishDesktopState();
             try
             {
-                if (value) StartReceiver();
-                else await StopReceiver();
                 SavePreference(value);
                 enabled = value;
+                if (value || clipboardEnabled) StartReceiver();
+                else await StopReceiver();
             }
             catch (Exception error) { MessageBox.Show(form, error.Message, "手机通知", MessageBoxButtons.OK, MessageBoxIcon.Error); }
             finally { busy = false; toggleMenu.Enabled = true; RefreshStatus(); }
@@ -249,14 +253,15 @@ namespace Xinyu.PhoneNotifications
                     ready = Convert.ToInt32(runtime["pid"]) == receiver.Id && Convert.ToString(runtime["worker"]) == "ready";
                 } catch (IOException) { } catch (ArgumentException) { } catch (InvalidOperationException) { }
             }
-            toggleMenu.Checked = running;
-            receivingRunning = running;
-            receivingReady = ready;
+            toggleMenu.Checked = enabled;
+            receivingRunning = enabled && running;
+            receivingReady = enabled && ready;
+            serviceReady = ready;
             tray.Icon = running ? onIcon : offIcon;
             tray.Text = running ? (ready ? "手机通知：接收已开启" : "手机通知：正在启动") : "手机通知：接收已关闭";
             settingsMenu.Enabled = true;
             PublishDesktopState();
-            string snapshot = json.Serialize(new { pid = Process.GetCurrentProcess().Id, receiving = running, preferred = enabled, ready = ready, visible = form.Visible, busy = busy, startupEnabled = StartupEnabled(), webReady = webReady, webError = webError, selectedNotificationId = selectedNotificationId, activationSource = lastActivationSource });
+            string snapshot = json.Serialize(new { pid = Process.GetCurrentProcess().Id, receiving = enabled && running, preferred = enabled, ready = ready, clipboardEnabled = clipboardEnabled, visible = form.Visible, busy = busy, startupEnabled = StartupEnabled(), webReady = webReady, webError = webError, selectedNotificationId = selectedNotificationId, activationSource = lastActivationSource });
             if (snapshot != lastState)
             {
                 string destination = Path.Combine(dataRoot, "controller-state.json");

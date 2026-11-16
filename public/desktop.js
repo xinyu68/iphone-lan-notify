@@ -26,6 +26,11 @@
   document.querySelectorAll('.tab').forEach(button => button.addEventListener('click', () => selectTab(button.dataset.tab)));
   get('receive-toggle').addEventListener('click', () => send('receiving', { enabled: get('receive-toggle').getAttribute('aria-checked') !== 'true' }));
   get('startup-toggle').addEventListener('click', () => send('startup', { enabled: get('startup-toggle').getAttribute('aria-checked') !== 'true' }));
+  get('clipboard-toggle').addEventListener('click', () => send('clipboard-enabled', { enabled:get('clipboard-toggle').getAttribute('aria-checked') !== 'true' }));
+  get('open-inbox').addEventListener('click', () => send('open-inbox'));
+  get('copy-clipboard-script').addEventListener('click', () => send('copy', {text:get('clipboard-script').value}));
+  get('export-clipboard-script').addEventListener('click', () => send('export-clipboard-script', {text:get('clipboard-script').value}));
+  let clipboardHistoryKey = '';
   get('copy').addEventListener('click', () => send('copy', { text: get('endpoint').value }));
   get('copy-scriptable').addEventListener('click', () => send('copy', { text: get('scriptable-code').value }));
   get('copy-shortcut').addEventListener('click', () => send('copy', { text: 'https://www.icloud.com/shortcuts/f1cc45ac60934a4baa820400ed63fe2b' }));
@@ -106,6 +111,7 @@
       if (changed) {
         get('endpoint').value = config.notifyUrl;
         get('scriptable-code').value = buildScriptableScript(config.notifyUrl);
+        get('clipboard-script').value = buildClipboardScript(config.clipboardUrl || config.notifyUrl.replace('/notify/','/clipboard/'));
         get('network-port').value = config.port;
       }
       const key = JSON.stringify([config.host, config.networks]);
@@ -125,8 +131,25 @@
     get('receive-toggle').setAttribute('aria-checked', String(state.receiving));
     get('startup-toggle').setAttribute('aria-checked', String(state.startupEnabled));
     get('receive-toggle').disabled = get('startup-toggle').disabled = state.busy;
-    get('status').textContent = state.busy ? '正在更新' : state.ready ? '接收已开启' : state.receiving ? '正在启动' : '接收已关闭';
-    get('status').className = 'status' + (state.ready ? ' on' : state.receiving ? ' waiting' : '');
+    get('clipboard-toggle').setAttribute('aria-checked', String(state.clipboardEnabled === true));
+    get('clipboard-toggle').disabled = state.busy;
+    get('clipboard-description').textContent = state.clipboardReady ? '已就绪，收到后替换电脑当前剪贴板' : state.clipboardEnabled ? '正在启动剪贴板接收' : '已关闭，文字、图片和文件均不会写入';
+    const receipts = receiver.clipboard?.history || [];
+    const key = JSON.stringify(receipts);
+    if (key !== clipboardHistoryKey) {
+      clipboardHistoryKey = key;
+      const list = get('clipboard-history'); list.replaceChildren();
+      if (!receipts.length) { const empty=document.createElement('p');empty.className='clipboard-note';empty.textContent='等待手机发送文字、图片或文件';list.append(empty); }
+      for (const item of receipts) {
+        const row=document.createElement('div');row.className='clipboard-receipt';
+        const title=document.createElement('strong'); title.textContent=item.kind==='text'?'文字已复制':item.kind==='image'?'图片已复制':'文件已接收，可在文件夹中粘贴';
+        const detail=document.createElement('span');detail.textContent=(item.files||[]).join('、') || '文字内容不留存';
+        const time=document.createElement('time');time.textContent=new Date(item.at).toLocaleString();row.append(title,detail,time);list.append(row);
+        if (item.kind !== 'text') { const open=document.createElement('button');open.className='secondary';open.textContent='打开文件位置';open.addEventListener('click',()=>send('open-clipboard-item',{id:item.id}));row.append(open); }
+      }
+    }
+    get('status').textContent = state.busy ? '正在更新' : state.ready ? '通知接收已开启' : state.clipboardReady ? '剪贴板接收已开启' : state.receiving || state.clipboardEnabled ? '正在启动' : '接收已关闭';
+    get('status').className = 'status' + (state.ready || state.clipboardReady ? ' on' : state.receiving || state.clipboardEnabled ? ' waiting' : '');
     get('receive-description').textContent = state.receiving ? '在电脑上显示来自 iPhone 的新通知' : '已停止接收，新通知将静默跳过';
     get('test').disabled = !state.ready || state.busy;
     for (const id of ['received', 'shown', 'failed']) get(id).textContent = receiver[id] || 0;
