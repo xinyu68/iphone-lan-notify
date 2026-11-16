@@ -23,6 +23,29 @@
       get(button.dataset.tab).hidden = !active;
     });
   }
+  function selectSetupTab(name) {
+    document.querySelectorAll('[data-setup-tab]').forEach(button => {
+      const active = button.dataset.setupTab === name;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-selected', String(active));
+      button.tabIndex = active ? 0 : -1;
+      get(button.getAttribute('aria-controls')).hidden = !active;
+    });
+  }
+  const setupChoices = [...document.querySelectorAll('[data-setup-tab]')];
+  setupChoices.forEach((button, index) => {
+    button.addEventListener('click', () => selectSetupTab(button.dataset.setupTab));
+    button.addEventListener('keydown', event => {
+      let next;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') next = (index + (event.key === 'ArrowRight' ? 1 : -1) + setupChoices.length) % setupChoices.length;
+      else if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = setupChoices.length - 1;
+      else return;
+      event.preventDefault();
+      selectSetupTab(setupChoices[next].dataset.setupTab);
+      setupChoices[next].focus();
+    });
+  });
   document.querySelectorAll('.tab').forEach(button => button.addEventListener('click', () => selectTab(button.dataset.tab)));
   get('receive-toggle').addEventListener('click', () => send('receiving', { enabled: get('receive-toggle').getAttribute('aria-checked') !== 'true' }));
   get('startup-toggle').addEventListener('click', () => send('startup', { enabled: get('startup-toggle').getAttribute('aria-checked') !== 'true' }));
@@ -30,7 +53,8 @@
   get('open-inbox').addEventListener('click', () => send('open-inbox'));
   get('open-clipboard-setup').addEventListener('click', () => {
     selectTab('setup');
-    get('clipboard-setup-card').scrollIntoView({behavior:'smooth',block:'start'});
+    selectSetupTab('clipboard');
+    document.querySelector('.setup-navigation').scrollIntoView({behavior:'smooth',block:'start'});
   });
   get('copy-clipboard-script').addEventListener('click', () => send('copy', {text:get('clipboard-script').value}));
   get('export-clipboard-script').addEventListener('click', () => send('export-clipboard-script', {text:get('clipboard-script').value}));
@@ -131,6 +155,7 @@
         get('network-host').value = changed || !options.some(item => item.value === previous) ? config.host : previous;
       }
       get('data-location').textContent = `本机数据目录：${config.dataDirectory}`;
+      get('connection-summary').textContent = `${config.host}:${config.port} · 两项功能共用`;
     }
     for (const id of ['save-network','refresh-network','configure-firewall','network-host','network-port']) get(id).disabled = state.busy;
     get('receive-toggle').setAttribute('aria-checked', String(state.receiving));

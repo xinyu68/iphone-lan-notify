@@ -23,3 +23,11 @@
 .controls .control+.control{border-left:1px solid var(--border);border-top:0;padding:0 0 0 20px}
 .controls .switch{align-self:center}
 @media(max-width:900px){.controls{grid-template-columns:1fr;gap:18px}.controls .control+.control{border-left:0;border-top:1px solid var(--border);padding:18px 0 0}}
+.setup-navigation{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:22px;scroll-margin-top:20px}
+.setup-choice{display:flex;flex-direction:column;gap:7px;text-align:left;padding:18px 20px;border:1px solid var(--border);border-radius:12px;background:#fff;color:#607087}
+.setup-choice strong{font-size:14px;font-weight:600}.setup-choice span{font-size:11px;line-height:1.7}
+.setup-choice:hover{background:#f0f8f8}.setup-choice.active{border-color:var(--accent);background:#edf7f7;color:#176a72;box-shadow:inset 0 0 0 1px var(--accent)}
+.connection-card{margin-top:16px;padding:0 25px}.connection-card summary{display:flex;align-items:center;gap:14px;cursor:pointer;padding:17px 0;font-size:12px;list-style:none}.connection-card summary::-webkit-details-marker{display:none}
+.connection-card summary:after{content:'+';margin-left:auto;font-size:18px;color:#76899d}.connection-card[open] summary:after{content:'−'}.connection-card summary span{font-size:11px;color:var(--muted)}
+.connection-card .network-settings{margin:0;padding:0 0 18px;border-bottom:0}.setup-panel{margin-top:16px}
+@media(max-width:700px){.setup-choice{padding:14px 12px}.connection-card{padding:0 20px}.connection-card summary{flex-wrap:wrap;gap:6px 12px}.connection-card summary span{overflow-wrap:anywhere}}
